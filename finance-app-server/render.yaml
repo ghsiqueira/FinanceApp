@@ -1,0 +1,15 @@
+name: finance-app-server
+region: sao-paulo
+services:
+  - type: web
+    name: finance-app-api
+    env: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGODB_URI
+        value: mongodb+srv://admin:admin@financeapp.tpgb7ab.mongodb.net/?retryWrites=true&w=majority&appName=financeApp
+    healthCheckPath: /
+    plan: free
