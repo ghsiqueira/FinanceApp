@@ -3,9 +3,9 @@ const mongoose = require('mongoose');
 
 const GoalSchema = new mongoose.Schema({
   user: {
-    type: String,
-    required: true,
-    default: 'default_user'
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
   },
   title: {
     type: String,

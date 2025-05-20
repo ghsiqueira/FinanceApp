@@ -10,6 +10,7 @@ import {
   ScrollView,
   ActivityIndicator
 } from 'react-native';
+import { useAuth } from '../context/AuthContext';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useTheme } from '../context/ThemeContext';
 import { 
@@ -31,6 +32,8 @@ const Settings = () => {
   // Loading state
   const [loading, setLoading] = useState<boolean>(true);
   
+  const { signOut } = useAuth();
+
   // Load user settings
   useEffect(() => {
     const loadSettings = async () => {
@@ -78,6 +81,27 @@ const Settings = () => {
     }
   };
   
+  const handleLogout = async () => {
+    Alert.alert(
+      'Sair da conta',
+      'Tem certeza que deseja sair da sua conta?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { 
+          text: 'Sair', 
+          onPress: async () => {
+            try {
+              await signOut();
+              // Não é necessário navegar, pois o estado signed no contexto já fará isso
+            } catch (error) {
+              console.error('Erro ao fazer logout:', error);
+            }
+          }
+        }
+      ]
+    );
+  };
+
   // Reset all settings
   const handleResetSettings = () => {
     Alert.alert(
@@ -300,6 +324,19 @@ const Settings = () => {
           <Icon name="chevron-right" size={22} color={theme.textSecondary} />
         </TouchableOpacity>
         
+        <TouchableOpacity 
+          style={styles.settingRow}
+          onPress={handleLogout}
+        >
+          <View style={styles.settingInfo}>
+            <Icon name="logout" size={22} color={theme.error} />
+            <Text style={[styles.settingLabel, { color: theme.error }]}>
+              Sair da conta
+            </Text>
+          </View>
+          <Icon name="chevron-right" size={22} color={theme.textSecondary} />
+        </TouchableOpacity>
+
         {/* About */}
         <TouchableOpacity 
           style={styles.settingRow}

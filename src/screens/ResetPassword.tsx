@@ -1,85 +1,72 @@
-// src/screens/Register.tsx
+// src/screens/ResetPassword.tsx
 import React, { useState } from 'react';
 import {
   View,
   Text,
+  StyleSheet,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
   ActivityIndicator,
+  Alert,
   KeyboardAvoidingView,
   Platform,
-  ScrollView,
-  Alert
+  ScrollView
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useTheme } from '../context/ThemeContext';
-import { useAuth } from '../context/AuthContext'; // Importe o contexto de autenticação
+import { useAuth } from '../context/AuthContext';
 
-const Register = () => {
+interface RouteParams {
+  token?: string;
+}
+
+const ResetPassword = () => {
   const navigation = useNavigation<any>();
-  const { theme } = useTheme();
-  const { signUp } = useAuth(); // Use o hook de autenticação
+  const route = useRoute();
+  const { token: routeToken } = (route.params as RouteParams) || {};
   
-  // Estados do formulário
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
+  const { theme } = useTheme();
+  const { resetPassword } = useAuth();
+  
+  const [token, setToken] = useState(routeToken || '');
+  const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  
-  // Validação do formulário
+  const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({
-    name: '',
-    email: '',
-    password: '',
+    token: '',
+    newPassword: '',
     confirmPassword: ''
   });
-  
-  // Validar email
-  const validateEmail = (email: string) => {
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailRegex.test(email);
-  };
   
   // Validar formulário
   const validateForm = () => {
     let valid = true;
     const newErrors = {
-      name: '',
-      email: '',
-      password: '',
+      token: '',
+      newPassword: '',
       confirmPassword: ''
     };
     
-    if (!name.trim()) {
-      newErrors.name = 'Nome é obrigatório';
+    if (!token.trim()) {
+      newErrors.token = 'O token é obrigatório';
       valid = false;
     }
     
-    if (!email.trim()) {
-      newErrors.email = 'E-mail é obrigatório';
+    if (!newPassword) {
+      newErrors.newPassword = 'A nova senha é obrigatória';
       valid = false;
-    } else if (!validateEmail(email)) {
-      newErrors.email = 'E-mail inválido';
-      valid = false;
-    }
-    
-    if (!password) {
-      newErrors.password = 'Senha é obrigatória';
-      valid = false;
-    } else if (password.length < 6) {
-      newErrors.password = 'Senha deve ter pelo menos 6 caracteres';
+    } else if (newPassword.length < 6) {
+      newErrors.newPassword = 'A senha deve ter pelo menos 6 caracteres';
       valid = false;
     }
     
     if (!confirmPassword) {
-      newErrors.confirmPassword = 'Confirmação de senha é obrigatória';
+      newErrors.confirmPassword = 'Confirme a nova senha';
       valid = false;
-    } else if (password !== confirmPassword) {
+    } else if (newPassword !== confirmPassword) {
       newErrors.confirmPassword = 'As senhas não coincidem';
       valid = false;
     }
@@ -88,31 +75,33 @@ const Register = () => {
     return valid;
   };
   
-  // Função de registro
-  const handleRegister = async () => {
+  const handleResetPassword = async () => {
     if (!validateForm()) return;
     
     setLoading(true);
     
     try {
-      // Chama a função de registro do contexto de autenticação
-      await signUp({ name, email, password });
+      await resetPassword({ token, newPassword });
       
-      // Não é necessário navegar, pois o estado signed no contexto já fará isso
-    } catch (error: any) {
-      // Mostrar mensagem de erro
+      // Mostrar mensagem de sucesso
+      Alert.alert(
+        'Sucesso',
+        'Sua senha foi redefinida com sucesso. Você já pode fazer login com a nova senha.',
+        [
+          { 
+            text: 'OK', 
+            onPress: () => navigation.navigate('Login')
+          }
+        ]
+      );
+    } catch (error) {
       Alert.alert(
         'Erro',
-        error.response?.data?.message || 'Não foi possível criar sua conta. Tente novamente.'
+        'Não foi possível redefinir sua senha. O token pode ser inválido ou ter expirado.'
       );
     } finally {
       setLoading(false);
     }
-  };
-  
-  // Navegar para a tela de login
-  const navigateToLogin = () => {
-    navigation.navigate('Login');
   };
   
   return (
@@ -127,75 +116,55 @@ const Register = () => {
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
-            onPress={navigateToLogin}
+            onPress={() => navigation.goBack()}
           >
             <Icon name="arrow-left" size={24} color={theme.text} />
           </TouchableOpacity>
-          <Text style={[styles.title, { color: theme.text }]}>Criar Conta</Text>
+          <Text style={[styles.title, { color: theme.text }]}>Redefinir Senha</Text>
         </View>
         
-        {/* Name Input */}
-        <View style={styles.inputContainer}>
-          <Text style={[styles.label, { color: theme.text }]}>Nome Completo</Text>
-          <View style={[
-            styles.inputWrapper, 
-            { borderColor: errors.name ? theme.error : theme.border, backgroundColor: theme.card }
-          ]}>
-            <Icon name="account-outline" size={20} color={theme.textSecondary} style={styles.inputIcon} />
-            <TextInput
-              style={[styles.input, { color: theme.text }]}
-              placeholder="Seu nome completo"
-              placeholderTextColor={theme.textSecondary}
-              value={name}
-              onChangeText={setName}
-            />
-          </View>
-          {errors.name ? (
-            <Text style={[styles.errorText, { color: theme.error }]}>
-              {errors.name}
-            </Text>
-          ) : null}
-        </View>
+        <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
+          Insira o token que você recebeu por e-mail e defina uma nova senha.
+        </Text>
         
-        {/* Email Input */}
+        {/* Token Input */}
         <View style={styles.inputContainer}>
-          <Text style={[styles.label, { color: theme.text }]}>E-mail</Text>
+          <Text style={[styles.label, { color: theme.text }]}>Token</Text>
           <View style={[
             styles.inputWrapper, 
-            { borderColor: errors.email ? theme.error : theme.border, backgroundColor: theme.card }
+            { borderColor: errors.token ? theme.error : theme.border, backgroundColor: theme.card }
           ]}>
-            <Icon name="email-outline" size={20} color={theme.textSecondary} style={styles.inputIcon} />
+            <Icon name="key" size={20} color={theme.textSecondary} style={styles.inputIcon} />
             <TextInput
               style={[styles.input, { color: theme.text }]}
-              placeholder="Seu e-mail"
+              placeholder="Token de recuperação"
               placeholderTextColor={theme.textSecondary}
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
+              value={token}
+              onChangeText={setToken}
               autoCapitalize="none"
             />
           </View>
-          {errors.email ? (
+          {errors.token ? (
             <Text style={[styles.errorText, { color: theme.error }]}>
-              {errors.email}
+              {errors.token}
             </Text>
           ) : null}
         </View>
         
-        {/* Password Input */}
+        {/* New Password Input */}
         <View style={styles.inputContainer}>
-          <Text style={[styles.label, { color: theme.text }]}>Senha</Text>
+          <Text style={[styles.label, { color: theme.text }]}>Nova Senha</Text>
           <View style={[
             styles.inputWrapper, 
-            { borderColor: errors.password ? theme.error : theme.border, backgroundColor: theme.card }
+            { borderColor: errors.newPassword ? theme.error : theme.border, backgroundColor: theme.card }
           ]}>
             <Icon name="lock-outline" size={20} color={theme.textSecondary} style={styles.inputIcon} />
             <TextInput
               style={[styles.input, { color: theme.text }]}
-              placeholder="Sua senha"
+              placeholder="Digite sua nova senha"
               placeholderTextColor={theme.textSecondary}
-              value={password}
-              onChangeText={setPassword}
+              value={newPassword}
+              onChangeText={setNewPassword}
               secureTextEntry={!showPassword}
             />
             <TouchableOpacity
@@ -209,9 +178,9 @@ const Register = () => {
               />
             </TouchableOpacity>
           </View>
-          {errors.password ? (
+          {errors.newPassword ? (
             <Text style={[styles.errorText, { color: theme.error }]}>
-              {errors.password}
+              {errors.newPassword}
             </Text>
           ) : null}
         </View>
@@ -226,7 +195,7 @@ const Register = () => {
             <Icon name="lock-outline" size={20} color={theme.textSecondary} style={styles.inputIcon} />
             <TextInput
               style={[styles.input, { color: theme.text }]}
-              placeholder="Confirme sua senha"
+              placeholder="Confirme sua nova senha"
               placeholderTextColor={theme.textSecondary}
               value={confirmPassword}
               onChangeText={setConfirmPassword}
@@ -250,36 +219,33 @@ const Register = () => {
           ) : null}
         </View>
         
-        {/* Register Button */}
+        {/* Submit Button */}
         <TouchableOpacity
-          style={[styles.registerButton, { backgroundColor: theme.primary }]}
-          onPress={handleRegister}
+          style={[styles.submitButton, { backgroundColor: theme.primary }]}
+          onPress={handleResetPassword}
           disabled={loading}
         >
           {loading ? (
             <ActivityIndicator color="#fff" size="small" />
           ) : (
-            <Text style={styles.registerButtonText}>Criar Conta</Text>
+            <Text style={styles.submitButtonText}>Redefinir Senha</Text>
           )}
         </TouchableOpacity>
         
-        {/* Login Link */}
-        <View style={styles.loginContainer}>
-          <Text style={[styles.loginText, { color: theme.textSecondary }]}>
-            Já tem uma conta?
+        {/* Return to Login */}
+        <TouchableOpacity 
+          style={styles.loginLink}
+          onPress={() => navigation.navigate('Login')}
+        >
+          <Text style={[styles.loginLinkText, { color: theme.primary }]}>
+            Voltar para o login
           </Text>
-          <TouchableOpacity onPress={navigateToLogin}>
-            <Text style={[styles.loginLink, { color: theme.primary }]}>
-              Faça login
-            </Text>
-          </TouchableOpacity>
-        </View>
+        </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
   );
 };
 
-// Os estilos permanecem os mesmos...
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -301,8 +267,12 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: 'bold',
   },
+  subtitle: {
+    fontSize: 16,
+    marginBottom: 32,
+  },
   inputContainer: {
-    marginBottom: 16,
+    marginBottom: 20,
   },
   label: {
     fontSize: 16,
@@ -331,32 +301,25 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 4,
   },
-  registerButton: {
+  submitButton: {
     height: 50,
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 8,
-    marginBottom: 16,
   },
-  registerButtonText: {
+  submitButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
   },
-  loginContainer: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    marginTop: 16,
-  },
-  loginText: {
-    fontSize: 14,
-    marginRight: 4,
-  },
   loginLink: {
-    fontSize: 14,
-    fontWeight: 'bold',
+    marginTop: 24,
+    alignItems: 'center',
+  },
+  loginLinkText: {
+    fontSize: 16,
   },
 });
 
-export default Register;
+export default ResetPassword;

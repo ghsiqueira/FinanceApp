@@ -6,7 +6,6 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Image,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
@@ -16,11 +15,12 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext'; // Importe o contexto de autenticação
 
-// Componente de formulário de login
 const Login = () => {
   const navigation = useNavigation<any>();
   const { theme } = useTheme();
+  const { signIn } = useAuth(); // Use o hook de autenticação
   
   // Estados do formulário
   const [email, setEmail] = useState('');
@@ -75,22 +75,15 @@ const Login = () => {
     setLoading(true);
     
     try {
-      // Simular chamada de API para login (substitua por implementação real)
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Chama a função de login do contexto de autenticação
+      await signIn({ email, password });
       
-      // Em um app real, aqui você faria a autenticação com seu backend
-      // E salvaria o token de autenticação em um armazenamento seguro
-      
-      // Para este exemplo, vamos apenas navegar para a tela inicial
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'Main' }],
-      });
-    } catch (error) {
-      console.error('Erro ao fazer login:', error);
+      // Não é necessário navegar, pois o estado signed no contexto já fará isso
+    } catch (error: any) {
+      // Mostrar mensagem de erro
       Alert.alert(
         'Erro',
-        'Não foi possível fazer login. Verifique suas credenciais e tente novamente.'
+        error.response?.data?.message || 'Não foi possível fazer login. Verifique suas credenciais e tente novamente.'
       );
     } finally {
       setLoading(false);
@@ -221,6 +214,7 @@ const Login = () => {
   );
 };
 
+// Os estilos permanecem os mesmos...
 const styles = StyleSheet.create({
   container: {
     flex: 1,

@@ -3,6 +3,7 @@ import React from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ThemeProvider } from './src/context/ThemeContext';
+import { AuthProvider } from './src/context/AuthContext';
 import { CategoryProvider } from './src/context/CategoryContext';
 import { TransactionProvider } from './src/context/TransactionContext';
 import { GoalProvider } from './src/context/GoalContext';
@@ -12,14 +13,16 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <ThemeProvider>
-        <CategoryProvider>
-          <TransactionProvider>
-            <GoalProvider>
-              <StatusBar style="auto" />
-              <AppNavigation />
-            </GoalProvider>
-          </TransactionProvider>
-        </CategoryProvider>
+        <AuthProvider>
+          <CategoryProvider>
+            <TransactionProvider>
+              <GoalProvider>
+                <StatusBar style="auto" />
+                <AppNavigation />
+              </GoalProvider>
+            </TransactionProvider>
+          </CategoryProvider>
+        </AuthProvider>
       </ThemeProvider>
     </SafeAreaProvider>
   );

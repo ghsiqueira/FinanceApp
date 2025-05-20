@@ -1,19 +1,20 @@
-// src/navigation/index.tsx (corrigido para versão mais recente do React Navigation)
+// src/navigation/index.tsx
 import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { StatusBar } from 'expo-status-bar';
 import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
+import AuthStack from './AuthStack';
 import BottomTabNavigator from './BottomTabNavigator';
+import LoadingScreen from '../screens/LoadingScreen';
 
-// Provedor de contextos para toda a aplicação
-import { ThemeProvider } from '../context/ThemeContext';
-import { CategoryProvider } from '../context/CategoryContext';
-import { TransactionProvider } from '../context/TransactionContext';
-import { GoalProvider } from '../context/GoalContext';
-
-// Navegação principal sem os provedores de contexto
-const Navigation = () => {
+const AppNavigation = () => {
   const { isDarkMode, theme } = useTheme();
+  const { signed, loading } = useAuth();
+
+  if (loading) {
+    return <LoadingScreen />;
+  }
 
   return (
     <NavigationContainer
@@ -27,7 +28,6 @@ const Navigation = () => {
           border: theme.border,
           notification: theme.error,
         },
-        // Adicionando a propriedade fonts com apenas as propriedades suportadas
         fonts: {
           regular: {
             fontFamily: 'System',
@@ -49,24 +49,9 @@ const Navigation = () => {
       }}
     >
       <StatusBar style={isDarkMode ? 'light' : 'dark'} />
-      <BottomTabNavigator />
+      {signed ? <BottomTabNavigator /> : <AuthStack />}
     </NavigationContainer>
   );
 };
 
-// Aplicativo com todos os provedores de contexto
-const AppWithProviders = () => {
-  return (
-    <ThemeProvider>
-      <CategoryProvider>
-        <TransactionProvider>
-          <GoalProvider>
-            <Navigation />
-          </GoalProvider>
-        </TransactionProvider>
-      </CategoryProvider>
-    </ThemeProvider>
-  );
-};
-
-export default AppWithProviders;
+export default AppNavigation;
