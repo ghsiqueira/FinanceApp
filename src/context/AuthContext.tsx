@@ -1,6 +1,12 @@
-// src/context/AuthContext.tsx - Updated version
+// src/context/AuthContext.tsx - Atualizado para incluir verifyResetCode
 import React, { createContext, useState, useEffect, useContext } from 'react';
-import authService, { LoginData, RegisterData, ResetPasswordData, NewPasswordData } from '../services/authService';
+import authService, { 
+  LoginData, 
+  RegisterData, 
+  ResetPasswordData, 
+  NewPasswordData,
+  VerifyResetCodeData 
+} from '../services/authService';
 import { useCategories } from './CategoryContext';
 
 interface User {
@@ -17,6 +23,7 @@ interface AuthContextData {
   signUp: (data: RegisterData) => Promise<void>;
   signOut: () => Promise<void>;
   requestReset: (data: ResetPasswordData) => Promise<void>;
+  verifyResetCode: (data: VerifyResetCodeData) => Promise<void>; // Novo método
   resetPassword: (data: NewPasswordData) => Promise<void>;
 }
 
@@ -92,6 +99,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }
 
+  // Novo método para verificar código
+  async function verifyResetCode(data: VerifyResetCodeData) {
+    try {
+      await authService.verifyResetCode(data);
+    } catch (error) {
+      throw error;
+    }
+  }
+
   async function resetPassword(data: NewPasswordData) {
     try {
       await authService.resetPassword(data);
@@ -109,6 +125,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       signUp,
       signOut,
       requestReset,
+      verifyResetCode, // Adicionando o novo método
       resetPassword
     }}>
       {children}

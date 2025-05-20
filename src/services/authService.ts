@@ -1,4 +1,3 @@
-// src/services/authService.ts - Enhanced version
 import api from './api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { sanitizeObject } from '../utils/sanitize';
@@ -22,8 +21,14 @@ export interface ResetPasswordData {
   email: string;
 }
 
+export interface VerifyResetCodeData {
+  email: string;
+  code: string;
+}
+
 export interface NewPasswordData {
-  token: string;
+  email: string;
+  code: string;
   newPassword: string;
 }
 
@@ -162,7 +167,7 @@ const authService = {
     }
   },
   
-  // Solicitar recuperação de senha
+  // Solicitar recuperação de senha (atualizado para código)
   requestPasswordReset: async (data: ResetPasswordData): Promise<void> => {
     try {
       // Sanitize input data
@@ -175,7 +180,20 @@ const authService = {
     }
   },
   
-  // Redefinir senha
+  // Verificar código de recuperação (novo método)
+  verifyResetCode: async (data: VerifyResetCodeData): Promise<void> => {
+    try {
+      // Sanitize input data
+      const sanitizedData = sanitizeObject(data);
+      
+      await api.post('/auth/verify-reset-code', sanitizedData);
+    } catch (error) {
+      console.error('Erro ao verificar código:', error);
+      throw error;
+    }
+  },
+  
+  // Redefinir senha (atualizado para usar email e código)
   resetPassword: async (data: NewPasswordData): Promise<void> => {
     try {
       // Sanitize input data

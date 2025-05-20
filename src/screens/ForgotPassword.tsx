@@ -1,4 +1,4 @@
-// src/screens/ForgotPassword.tsx
+// src/screens/ForgotPassword.tsx - Atualizado para redirecionar para VerifyResetCode
 import React, { useState } from 'react';
 import {
   View,
@@ -50,19 +50,10 @@ const ForgotPassword = () => {
     try {
       await requestReset({ email });
       
-      // Mostrar mensagem de sucesso
-      Alert.alert(
-        'Recuperação de senha',
-        'Enviamos instruções para recuperar sua senha no e-mail informado.',
-        [
-          { 
-            text: 'OK', 
-            onPress: () => navigation.navigate('Login')
-          }
-        ]
-      );
+      // Navegar para a tela de verificação de código em vez de mostrar alerta
+      navigation.navigate('VerifyResetCode', { email });
     } catch (error) {
-      setError('Não foi possível enviar o e-mail de recuperação. Tente novamente.');
+      setError('Não foi possível enviar o código de recuperação. Tente novamente.');
     } finally {
       setLoading(false);
     }
@@ -88,7 +79,7 @@ const ForgotPassword = () => {
         </View>
         
         <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-          Informe o e-mail associado à sua conta para receber instruções de recuperação de senha.
+          Insira seu e-mail para receber um código de 5 dígitos para redefinir sua senha.
         </Text>
         
         {/* Email Input */}
@@ -125,7 +116,7 @@ const ForgotPassword = () => {
           {loading ? (
             <ActivityIndicator color="#fff" size="small" />
           ) : (
-            <Text style={styles.submitButtonText}>Enviar</Text>
+            <Text style={styles.submitButtonText}>Enviar Código</Text>
           )}
         </TouchableOpacity>
         
@@ -191,7 +182,6 @@ const styles = StyleSheet.create({
     height: 48,
     fontSize: 16,
   },
-  // Continuação do arquivo src/screens/ForgotPassword.tsx
   errorText: {
     fontSize: 12,
     marginTop: 4,

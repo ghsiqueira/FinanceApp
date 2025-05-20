@@ -1,4 +1,4 @@
-// src/screens/ResetPassword.tsx
+// src/screens/ResetPassword.tsx - Atualizado para usar código de 5 dígitos
 import React, { useState } from 'react';
 import {
   View,
@@ -18,25 +18,24 @@ import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 
 interface RouteParams {
-  token?: string;
+  email: string;
+  code: string;
 }
 
 const ResetPassword = () => {
   const navigation = useNavigation<any>();
   const route = useRoute();
-  const { token: routeToken } = (route.params as RouteParams) || {};
+  const { email, code } = (route.params as RouteParams) || {};
   
   const { theme } = useTheme();
   const { resetPassword } = useAuth();
   
-  const [token, setToken] = useState(routeToken || '');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({
-    token: '',
     newPassword: '',
     confirmPassword: ''
   });
@@ -45,15 +44,9 @@ const ResetPassword = () => {
   const validateForm = () => {
     let valid = true;
     const newErrors = {
-      token: '',
       newPassword: '',
       confirmPassword: ''
     };
-    
-    if (!token.trim()) {
-      newErrors.token = 'O token é obrigatório';
-      valid = false;
-    }
     
     if (!newPassword) {
       newErrors.newPassword = 'A nova senha é obrigatória';
@@ -81,7 +74,8 @@ const ResetPassword = () => {
     setLoading(true);
     
     try {
-      await resetPassword({ token, newPassword });
+      // Agora passamos email e código em vez de token
+      await resetPassword({ email, code, newPassword });
       
       // Mostrar mensagem de sucesso
       Alert.alert(
@@ -97,7 +91,7 @@ const ResetPassword = () => {
     } catch (error) {
       Alert.alert(
         'Erro',
-        'Não foi possível redefinir sua senha. O token pode ser inválido ou ter expirado.'
+        'Não foi possível redefinir sua senha. O código pode ser inválido ou ter expirado.'
       );
     } finally {
       setLoading(false);
@@ -124,32 +118,8 @@ const ResetPassword = () => {
         </View>
         
         <Text style={[styles.subtitle, { color: theme.textSecondary }]}>
-          Insira o token que você recebeu por e-mail e defina uma nova senha.
+          Crie uma nova senha para sua conta.
         </Text>
-        
-        {/* Token Input */}
-        <View style={styles.inputContainer}>
-          <Text style={[styles.label, { color: theme.text }]}>Token</Text>
-          <View style={[
-            styles.inputWrapper, 
-            { borderColor: errors.token ? theme.error : theme.border, backgroundColor: theme.card }
-          ]}>
-            <Icon name="key" size={20} color={theme.textSecondary} style={styles.inputIcon} />
-            <TextInput
-              style={[styles.input, { color: theme.text }]}
-              placeholder="Token de recuperação"
-              placeholderTextColor={theme.textSecondary}
-              value={token}
-              onChangeText={setToken}
-              autoCapitalize="none"
-            />
-          </View>
-          {errors.token ? (
-            <Text style={[styles.errorText, { color: theme.error }]}>
-              {errors.token}
-            </Text>
-          ) : null}
-        </View>
         
         {/* New Password Input */}
         <View style={styles.inputContainer}>
