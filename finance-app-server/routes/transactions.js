@@ -1,12 +1,16 @@
-// finance-app-server/routes/transactions.js
+// finance-app-server/routes/transactions.js - Fixed version
 const express = require('express');
 const router = express.Router();
 const Transaction = require('../models/Transaction');
+const auth = require('../middleware/auth'); // Import auth middleware
+
+// Apply auth middleware to all routes
+router.use(auth);
 
 // Obter todas as transações
 router.get('/', async (req, res) => {
   try {
-    const transactions = await Transaction.find()
+    const transactions = await Transaction.find({ user: req.user })
       .sort({ date: -1 })
       .populate('category', 'name color icon');
     res.json(transactions);
@@ -19,8 +23,10 @@ router.get('/', async (req, res) => {
 // Obter uma transação específica
 router.get('/:id', async (req, res) => {
   try {
-    const transaction = await Transaction.findById(req.params.id)
-      .populate('category', 'name color icon');
+    const transaction = await Transaction.findOne({
+      _id: req.params.id,
+      user: req.user
+    }).populate('category', 'name color icon');
     
     if (!transaction) {
       return res.status(404).json({ message: 'Transação não encontrada' });
@@ -36,7 +42,12 @@ router.get('/:id', async (req, res) => {
 // Criar uma nova transação
 router.post('/', async (req, res) => {
   try {
-    const newTransaction = new Transaction(req.body);
+    // Make sure the transaction belongs to the current user
+    const newTransaction = new Transaction({
+      ...req.body,
+      user: req.user // Ensure user ID is set from auth token
+    });
+    
     const savedTransaction = await newTransaction.save();
     
     const populatedTransaction = await Transaction.findById(savedTransaction._id)
@@ -52,8 +63,9 @@ router.post('/', async (req, res) => {
 // Atualizar uma transação
 router.put('/:id', async (req, res) => {
   try {
-    const updatedTransaction = await Transaction.findByIdAndUpdate(
-      req.params.id,
+    // Ensure only the owner can update
+    const updatedTransaction = await Transaction.findOneAndUpdate(
+      { _id: req.params.id, user: req.user },
       req.body,
       { new: true }
     ).populate('category', 'name color icon');
@@ -72,7 +84,11 @@ router.put('/:id', async (req, res) => {
 // Excluir uma transação
 router.delete('/:id', async (req, res) => {
   try {
-    const deletedTransaction = await Transaction.findByIdAndDelete(req.params.id);
+    // Ensure only the owner can delete
+    const deletedTransaction = await Transaction.findOneAndDelete({
+      _id: req.params.id,
+      user: req.user
+    });
     
     if (!deletedTransaction) {
       return res.status(404).json({ message: 'Transação não encontrada' });
@@ -94,6 +110,7 @@ router.get('/summary/monthly', async (req, res) => {
     const endDate = new Date(year, month, 0);
     
     const transactions = await Transaction.find({
+      user: req.user, // Only get the current user's transactions
       date: { $gte: startDate, $lte: endDate }
     }).populate('category', 'name color icon');
     

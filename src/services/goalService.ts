@@ -1,6 +1,9 @@
-// src/services/goalService.ts
+// src/services/goalService.ts - Fixed version
 import api from './api';
 import { Goal } from '../types';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const USER_DATA_KEY = '@FinanceApp:userData';
 
 const goalService = {
   // Obter todas as metas
@@ -28,7 +31,27 @@ const goalService = {
   // Criar nova meta
   create: async (goal: Goal): Promise<Goal> => {
     try {
-      const response = await api.post('/goals', goal);
+      // Get user data from AsyncStorage
+      const userData = await AsyncStorage.getItem(USER_DATA_KEY);
+      let userId = null;
+      
+      if (userData) {
+        const user = JSON.parse(userData);
+        userId = user.id;
+      }
+      
+      if (!userId) {
+        throw new Error('User ID not found. Please log in again.');
+      }
+      
+      // Add user ID to goal data
+      const goalWithUser = {
+        ...goal,
+        user: userId
+      };
+      
+      console.log('Creating goal with data:', goalWithUser);
+      const response = await api.post('/goals', goalWithUser);
       return response.data;
     } catch (error) {
       console.error('Erro ao criar meta:', error);
@@ -39,7 +62,26 @@ const goalService = {
   // Atualizar meta existente
   update: async (id: string, goal: Goal): Promise<Goal> => {
     try {
-      const response = await api.put(`/goals/${id}`, goal);
+      // Get user data from AsyncStorage
+      const userData = await AsyncStorage.getItem(USER_DATA_KEY);
+      let userId = null;
+      
+      if (userData) {
+        const user = JSON.parse(userData);
+        userId = user.id;
+      }
+      
+      if (!userId) {
+        throw new Error('User ID not found. Please log in again.');
+      }
+      
+      // Add user ID to goal data
+      const goalWithUser = {
+        ...goal,
+        user: userId
+      };
+      
+      const response = await api.put(`/goals/${id}`, goalWithUser);
       return response.data;
     } catch (error) {
       console.error(`Erro ao atualizar meta ${id}:`, error);

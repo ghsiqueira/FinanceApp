@@ -1,12 +1,16 @@
-// finance-app-server/routes/goals.js
+// finance-app-server/routes/goals.js - Fixed version
 const express = require('express');
 const router = express.Router();
 const Goal = require('../models/Goal');
+const auth = require('../middleware/auth'); // Import auth middleware
+
+// Apply auth middleware to all routes
+router.use(auth);
 
 // Obter todas as metas
 router.get('/', async (req, res) => {
   try {
-    const goals = await Goal.find()
+    const goals = await Goal.find({ user: req.user })
       .sort({ createdAt: -1 })
       .populate('category', 'name color icon');
     res.json(goals);
@@ -19,8 +23,10 @@ router.get('/', async (req, res) => {
 // Obter uma meta específica
 router.get('/:id', async (req, res) => {
   try {
-    const goal = await Goal.findById(req.params.id)
-      .populate('category', 'name color icon');
+    const goal = await Goal.findOne({
+      _id: req.params.id,
+      user: req.user
+    }).populate('category', 'name color icon');
     
     if (!goal) {
       return res.status(404).json({ message: 'Meta não encontrada' });
@@ -36,7 +42,12 @@ router.get('/:id', async (req, res) => {
 // Criar uma nova meta
 router.post('/', async (req, res) => {
   try {
-    const newGoal = new Goal(req.body);
+    // Make sure the goal belongs to the current user
+    const newGoal = new Goal({
+      ...req.body,
+      user: req.user // Ensure user ID is set from auth token
+    });
+    
     const savedGoal = await newGoal.save();
     
     const populatedGoal = await Goal.findById(savedGoal._id)
@@ -52,8 +63,9 @@ router.post('/', async (req, res) => {
 // Atualizar uma meta
 router.put('/:id', async (req, res) => {
   try {
-    const updatedGoal = await Goal.findByIdAndUpdate(
-      req.params.id,
+    // Ensure only the owner can update
+    const updatedGoal = await Goal.findOneAndUpdate(
+      { _id: req.params.id, user: req.user },
       req.body,
       { new: true }
     ).populate('category', 'name color icon');
@@ -72,7 +84,11 @@ router.put('/:id', async (req, res) => {
 // Excluir uma meta
 router.delete('/:id', async (req, res) => {
   try {
-    const deletedGoal = await Goal.findByIdAndDelete(req.params.id);
+    // Ensure only the owner can delete
+    const deletedGoal = await Goal.findOneAndDelete({
+      _id: req.params.id,
+      user: req.user
+    });
     
     if (!deletedGoal) {
       return res.status(404).json({ message: 'Meta não encontrada' });
@@ -94,7 +110,11 @@ router.post('/:id/add', async (req, res) => {
       return res.status(400).json({ message: 'Valor inválido' });
     }
     
-    const goal = await Goal.findById(req.params.id);
+    // Find goal and ensure it belongs to the current user
+    const goal = await Goal.findOne({
+      _id: req.params.id,
+      user: req.user
+    });
     
     if (!goal) {
       return res.status(404).json({ message: 'Meta não encontrada' });

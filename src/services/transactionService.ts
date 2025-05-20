@@ -1,6 +1,9 @@
-// src/services/transactionService.ts
+// src/services/transactionService.ts - Fixed version
 import api from './api';
 import { Transaction, MonthlySummary } from '../types';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const USER_DATA_KEY = '@FinanceApp:userData';
 
 const transactionService = {
   // Obter todas as transações
@@ -28,7 +31,27 @@ const transactionService = {
   // Criar nova transação
   create: async (transaction: Transaction): Promise<Transaction> => {
     try {
-      const response = await api.post('/transactions', transaction);
+      // Get user data from AsyncStorage
+      const userData = await AsyncStorage.getItem(USER_DATA_KEY);
+      let userId = null;
+      
+      if (userData) {
+        const user = JSON.parse(userData);
+        userId = user.id;
+      }
+      
+      if (!userId) {
+        throw new Error('User ID not found. Please log in again.');
+      }
+      
+      // Add user ID to transaction data
+      const transactionWithUser = {
+        ...transaction,
+        user: userId
+      };
+      
+      console.log('Creating transaction with data:', transactionWithUser);
+      const response = await api.post('/transactions', transactionWithUser);
       return response.data;
     } catch (error) {
       console.error('Erro ao criar transação:', error);
@@ -39,7 +62,26 @@ const transactionService = {
   // Atualizar transação existente
   update: async (id: string, transaction: Transaction): Promise<Transaction> => {
     try {
-      const response = await api.put(`/transactions/${id}`, transaction);
+      // Get user data from AsyncStorage
+      const userData = await AsyncStorage.getItem(USER_DATA_KEY);
+      let userId = null;
+      
+      if (userData) {
+        const user = JSON.parse(userData);
+        userId = user.id;
+      }
+      
+      if (!userId) {
+        throw new Error('User ID not found. Please log in again.');
+      }
+      
+      // Add user ID to transaction data
+      const transactionWithUser = {
+        ...transaction,
+        user: userId
+      };
+      
+      const response = await api.put(`/transactions/${id}`, transactionWithUser);
       return response.data;
     } catch (error) {
       console.error(`Erro ao atualizar transação ${id}:`, error);
