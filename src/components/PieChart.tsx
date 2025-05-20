@@ -1,10 +1,9 @@
-// src/components/PieChart.tsx
 import React from 'react';
 import { View, Text, StyleSheet, Dimensions } from 'react-native';
 import { PieChart as RNPieChart } from 'react-native-chart-kit';
 import { useTheme } from '../context/ThemeContext';
 
-interface PieChartData {
+interface PieChartDataItem {
   name: string;
   value: number;
   color: string;
@@ -14,43 +13,68 @@ interface PieChartData {
 
 interface PieChartProps {
   title?: string;
-  data: PieChartData[];
+  data: PieChartDataItem[];
   height?: number;
+  width?: number;
   accessor?: string;
   backgroundColor?: string;
   paddingLeft?: string;
-  center?: [number, number];
   absolute?: boolean;
+  hasLegend?: boolean;
+  centerText?: string;
 }
 
 const PieChart: React.FC<PieChartProps> = ({
   title,
   data,
   height = 220,
+  width,
   accessor = 'value',
   backgroundColor,
-  paddingLeft = '0',
-  center,
-  absolute = false,
+  paddingLeft = '20',
+  absolute = true,
+  hasLegend = true,
+  centerText,
 }) => {
   const { theme, isDarkMode } = useTheme();
-  const screenWidth = Dimensions.get('window').width - 32; // Padding on both sides
+  const screenWidth = width || Dimensions.get('window').width - 32; // Padding on both sides
 
-  // Adjust data to include default legendFontColor based on theme
+  // Process data to add default legend font color
   const chartData = data.map(item => ({
     ...item,
     legendFontColor: item.legendFontColor || theme.text,
-    legendFontSize: item.legendFontSize || 12
+    legendFontSize: item.legendFontSize || 12,
   }));
 
-  // Chart configuration
+  // Configure chart appearance
   const chartConfig = {
-    backgroundGradientFrom: backgroundColor || theme.card,
-    backgroundGradientTo: backgroundColor || theme.card,
+    backgroundColor: backgroundColor || theme.card,
+    backgroundGradientFrom: theme.card,
+    backgroundGradientTo: theme.card,
+    decimalPlaces: 0,
     color: (opacity = 1) => isDarkMode 
       ? `rgba(255, 255, 255, ${opacity})`
       : `rgba(0, 0, 0, ${opacity})`,
-    labelColor: (opacity = 1) => theme.text,
+    labelColor: (opacity = 1) => isDarkMode 
+      ? `rgba(255, 255, 255, ${opacity})`
+      : `rgba(0, 0, 0, ${opacity})`,
+    style: {
+      borderRadius: 16,
+    },
+  };
+
+  // Remove unsupported props for the React Native Chart Kit
+  const supportedProps: any = {
+    data: chartData,
+    width: screenWidth,
+    height,
+    chartConfig,
+    accessor,
+    backgroundColor: backgroundColor || 'transparent',
+    paddingLeft,
+    absolute,
+    hasLegend,
+    center: centerText ? [screenWidth / 2, height / 2] : undefined,
   };
 
   return (
@@ -59,18 +83,15 @@ const PieChart: React.FC<PieChartProps> = ({
         <Text style={[styles.title, { color: theme.text }]}>{title}</Text>
       )}
       <RNPieChart
-        data={chartData}
-        width={screenWidth}
-        height={height}
-        chartConfig={chartConfig}
-        accessor={accessor}
-        backgroundColor={backgroundColor || 'transparent'}
-        paddingLeft={paddingLeft}
-        center={center}
-        absolute={absolute}
-        style={styles.chart}
-        hasLegend
+        {...supportedProps}
       />
+      {centerText && (
+        <View style={[styles.centerTextContainer, { top: height / 2 - 15, left: screenWidth / 2 - 45 }]}>
+          <Text style={[styles.centerText, { color: theme.text }]}>
+            {centerText}
+          </Text>
+        </View>
+      )}
     </View>
   );
 };
@@ -78,14 +99,25 @@ const PieChart: React.FC<PieChartProps> = ({
 const styles = StyleSheet.create({
   container: {
     marginVertical: 8,
+    position: 'relative',
   },
   title: {
     fontSize: 16,
     fontWeight: 'bold',
     marginBottom: 8,
   },
-  chart: {
-    borderRadius: 16,
+  centerTextContainer: {
+    position: 'absolute',
+    zIndex: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 90,
+    height: 30,
+  },
+  centerText: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    textAlign: 'center',
   },
 });
 

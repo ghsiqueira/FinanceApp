@@ -1,60 +1,66 @@
 import React from 'react';
 import { View, Text, StyleSheet, Dimensions } from 'react-native';
-import { LineChart as RNLineChart } from 'react-native-chart-kit';
+import { BarChart as RNBarChart } from 'react-native-chart-kit';
 import { useTheme } from '../context/ThemeContext';
 
-interface LineChartProps {
+interface BarChartProps {
   title?: string;
   data: {
     labels: string[];
     datasets: {
       data: number[];
-      color?: ((opacity: number) => string) | string;
-      strokeWidth?: number;
+      colors?: string[];
     }[];
     legend?: string[];
   };
   height?: number;
   width?: number;
   formatYLabel?: (value: string) => string;
-  bezier?: boolean;
-  withDots?: boolean;
-  withShadow?: boolean;
+  showValuesOnTopOfBars?: boolean;
+  horizontal?: boolean;
 }
 
-const LineChart: React.FC<LineChartProps> = ({
+const BarChart: React.FC<BarChartProps> = ({
   title,
   data,
   height = 220,
   width,
   formatYLabel,
-  bezier = true,
-  withDots = true,
-  withShadow = true,
+  showValuesOnTopOfBars = false,
+  horizontal = false,
 }) => {
   const { theme, isDarkMode } = useTheme();
   const screenWidth = width || Dimensions.get('window').width - 32; // Padding on both sides
 
+  // Create a compatible data structure for the chart library
+  const chartData = {
+    labels: data.labels,
+    datasets: data.datasets.map(dataset => ({
+      data: dataset.data,
+    })),
+    legend: data.legend || [],
+  };
+
   // Configure chart appearance
   const chartConfig = {
-    backgroundColor: theme.card,
     backgroundGradientFrom: theme.card,
     backgroundGradientTo: theme.card,
     decimalPlaces: 0,
-    color: (opacity = 1) => isDarkMode 
-      ? `rgba(255, 255, 255, ${opacity})`
-      : `rgba(0, 0, 0, ${opacity})`,
+    color: (opacity = 1, index = 0) => {
+      if (data.datasets[0].colors && data.datasets[0].colors[index]) {
+        return data.datasets[0].colors[index] + (opacity * 255).toString(16).slice(0, 2);
+      }
+      return isDarkMode 
+        ? `rgba(200, 200, 200, ${opacity})`
+        : `rgba(0, 0, 0, ${opacity})`;
+    },
     labelColor: (opacity = 1) => isDarkMode 
       ? `rgba(255, 255, 255, ${opacity})`
       : `rgba(0, 0, 0, ${opacity})`,
     style: {
       borderRadius: 16,
     },
-    propsForDots: {
-      r: '5',
-      strokeWidth: '2',
-      stroke: theme.primary,
-    },
+    barPercentage: 0.7,
     propsForBackgroundLines: {
       strokeDasharray: '',
       stroke: isDarkMode ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
@@ -64,29 +70,32 @@ const LineChart: React.FC<LineChartProps> = ({
 
   // Remove unsupported props for the React Native Chart Kit
   const supportedProps: any = {
-    data: data,
+    data: chartData,
     width: screenWidth,
     height,
     chartConfig,
     style: styles.chart,
     withInnerLines: true,
-    withOuterLines: true,
     withHorizontalLabels: true,
-    withVerticalLabels: true,
-    withDots,
-    withShadow,
-    bezier,
+    showBarTops: showValuesOnTopOfBars,
     fromZero: true,
     yAxisLabel: "",
     yAxisSuffix: ""
   };
+
+  // Only add horizontal prop if it's supported in your version of react-native-chart-kit
+  if (horizontal) {
+    // Some versions support this as:
+    // supportedProps.horizontalBarChartProps = { horizontal: true };
+    // But we'll exclude it to avoid errors
+  }
 
   return (
     <View style={styles.container}>
       {title && (
         <Text style={[styles.title, { color: theme.text }]}>{title}</Text>
       )}
-      <RNLineChart
+      <RNBarChart
         {...supportedProps}
       />
     </View>
@@ -108,4 +117,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default LineChart;
+export default BarChart;

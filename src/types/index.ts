@@ -57,3 +57,20 @@ export interface User {
   email: string;
   // Adicione outras propriedades do usuário conforme necessário
 }
+
+export interface RecurringTransaction {
+  _id?: string;
+  type: 'income' | 'expense';
+  amount: number;
+  description: string;
+  category: string | Category; // Can be either the category ID or the Category object
+  frequency: 'daily' | 'weekly' | 'monthly' | 'yearly';
+  startDate: string; // ISO string
+  endDate?: string; // ISO string, optional
+  dayOfWeek?: number; // 0-6 for weekly frequency
+  dayOfMonth?: number; // 1-31 for monthly and yearly frequency
+  month?: number; // 0-11 for yearly frequency
+  autoGenerate: boolean;
+  requireConfirmation: boolean;
+  active: boolean;
+}
