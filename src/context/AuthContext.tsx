@@ -1,6 +1,7 @@
-// src/context/AuthContext.tsx
+// src/context/AuthContext.tsx - Updated version
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import authService, { LoginData, RegisterData, ResetPasswordData, NewPasswordData } from '../services/authService';
+import { useCategories } from './CategoryContext';
 
 interface User {
   id: string;

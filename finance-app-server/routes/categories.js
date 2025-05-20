@@ -1,12 +1,18 @@
-// finance-app-server/routes/categories.js
+// finance-app-server/routes/categories.js - Updated version with debug logging
 const express = require('express');
 const router = express.Router();
 const Category = require('../models/Category');
+const auth = require('../middleware/auth'); // Import auth middleware
 
-// Obter todas as categorias
+// Apply auth middleware to all routes
+router.use(auth);
+
+// Obter todas as categorias do usuário atual
 router.get('/', async (req, res) => {
   try {
-    const categories = await Category.find().sort({ name: 1 });
+    console.log(`Buscando categorias para o usuário: ${req.user}`);
+    const categories = await Category.find({ user: req.user }).sort({ name: 1 });
+    console.log(`${categories.length} categorias encontradas`);
     res.json(categories);
   } catch (err) {
     console.error('Erro ao buscar categorias:', err);
@@ -17,7 +23,10 @@ router.get('/', async (req, res) => {
 // Obter uma categoria específica
 router.get('/:id', async (req, res) => {
   try {
-    const category = await Category.findById(req.params.id);
+    const category = await Category.findOne({ 
+      _id: req.params.id,
+      user: req.user // Garante que a categoria pertence ao usuário
+    });
     
     if (!category) {
       return res.status(404).json({ message: 'Categoria não encontrada' });
@@ -33,8 +42,15 @@ router.get('/:id', async (req, res) => {
 // Criar uma nova categoria
 router.post('/', async (req, res) => {
   try {
-    const newCategory = new Category(req.body);
+    // Certifique-se de que a categoria pertence ao usuário atual
+    const newCategory = new Category({
+      ...req.body,
+      user: req.user // Garante que a categoria é criada para o usuário atual
+    });
+    
+    console.log(`Criando categoria para usuário ${req.user}:`, newCategory);
     const savedCategory = await newCategory.save();
+    console.log('Categoria criada:', savedCategory);
     res.status(201).json(savedCategory);
   } catch (err) {
     console.error('Erro ao criar categoria:', err);
@@ -45,8 +61,9 @@ router.post('/', async (req, res) => {
 // Atualizar uma categoria
 router.put('/:id', async (req, res) => {
   try {
-    const updatedCategory = await Category.findByIdAndUpdate(
-      req.params.id,
+    // Certifique-se de que apenas o proprietário pode atualizar
+    const updatedCategory = await Category.findOneAndUpdate(
+      { _id: req.params.id, user: req.user },
       req.body,
       { new: true }
     );
@@ -69,7 +86,11 @@ router.delete('/:id', async (req, res) => {
     const Goal = require('../models/Goal');
     
     // Verificar se a categoria está sendo usada em transações
-    const transactionCount = await Transaction.countDocuments({ category: req.params.id });
+    const transactionCount = await Transaction.countDocuments({ 
+      category: req.params.id,
+      user: req.user // Garante que verificamos apenas as transações do usuário
+    });
+    
     if (transactionCount > 0) {
       return res.status(400).json({ 
         message: 'Não é possível excluir a categoria pois ela está sendo usada em transações' 
@@ -77,14 +98,22 @@ router.delete('/:id', async (req, res) => {
     }
     
     // Verificar se a categoria está sendo usada em metas
-    const goalCount = await Goal.countDocuments({ category: req.params.id });
+    const goalCount = await Goal.countDocuments({ 
+      category: req.params.id,
+      user: req.user // Garante que verificamos apenas as metas do usuário
+    });
+    
     if (goalCount > 0) {
       return res.status(400).json({ 
         message: 'Não é possível excluir a categoria pois ela está sendo usada em metas' 
       });
     }
     
-    const deletedCategory = await Category.findByIdAndDelete(req.params.id);
+    // Garante que apenas o proprietário pode excluir
+    const deletedCategory = await Category.findOneAndDelete({ 
+      _id: req.params.id,
+      user: req.user 
+    });
     
     if (!deletedCategory) {
       return res.status(404).json({ message: 'Categoria não encontrada' });

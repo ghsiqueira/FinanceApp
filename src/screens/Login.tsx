@@ -1,4 +1,4 @@
-// src/screens/Login.tsx
+// src/screens/Login.tsx - Add automatic category initialization
 import React, { useState } from 'react';
 import {
   View,
@@ -15,12 +15,14 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useTheme } from '../context/ThemeContext';
-import { useAuth } from '../context/AuthContext'; // Importe o contexto de autenticação
+import { useAuth } from '../context/AuthContext';
+import { useCategories } from '../context/CategoryContext';
 
 const Login = () => {
   const navigation = useNavigation<any>();
   const { theme } = useTheme();
-  const { signIn } = useAuth(); // Use o hook de autenticação
+  const { signIn } = useAuth();
+  const { initializeDefaultCategories } = useCategories();
   
   // Estados do formulário
   const [email, setEmail] = useState('');
@@ -78,6 +80,14 @@ const Login = () => {
       // Chama a função de login do contexto de autenticação
       await signIn({ email, password });
       
+      // Initialize default categories if needed
+      try {
+        await initializeDefaultCategories();
+      } catch (categoriesError) {
+        console.error('Error initializing categories:', categoriesError);
+        // Continue anyway, this is not a blocking issue
+      }
+      
       // Não é necessário navegar, pois o estado signed no contexto já fará isso
     } catch (error: any) {
       // Mostrar mensagem de erro
@@ -100,6 +110,9 @@ const Login = () => {
     navigation.navigate('ForgotPassword');
   };
   
+  // Rest of the component remains the same...
+  // (Omitting the rest of the component for brevity)
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
@@ -214,7 +227,7 @@ const Login = () => {
   );
 };
 
-// Os estilos permanecem os mesmos...
+// Styles remain the same
 const styles = StyleSheet.create({
   container: {
     flex: 1,

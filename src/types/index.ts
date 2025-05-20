@@ -9,6 +9,7 @@ export interface Transaction {
   date: Date | string;
   createdAt?: Date | string;
   updatedAt?: Date | string;
+  user?: string; // ID do usuário proprietário da transação
 }
 
 export interface Category {
@@ -19,6 +20,7 @@ export interface Category {
   type: 'income' | 'expense' | 'both';
   createdAt?: Date | string;
   updatedAt?: Date | string;
+  user?: string; // ID do usuário proprietário da categoria
 }
 
 export interface Goal {
@@ -32,6 +34,7 @@ export interface Goal {
   isCompleted: boolean;
   createdAt?: Date | string;
   updatedAt?: Date | string;
+  user?: string; // ID do usuário proprietário da meta
 }
 
 export interface MonthlySummary {
@@ -46,4 +49,11 @@ export interface ApiResponse<T> {
   status: number;
   message?: string;
   error?: string;
+}
+
+export interface User {
+  id: string;
+  name?: string;
+  email: string;
+  // Adicione outras propriedades do usuário conforme necessário
 }

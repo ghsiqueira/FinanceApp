@@ -1,4 +1,4 @@
-// src/screens/Register.tsx
+// src/screens/Register.tsx - Add automatic category initialization
 import React, { useState } from 'react';
 import {
   View,
@@ -15,12 +15,14 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
 import { useTheme } from '../context/ThemeContext';
-import { useAuth } from '../context/AuthContext'; // Importe o contexto de autenticação
+import { useAuth } from '../context/AuthContext';
+import { useCategories } from '../context/CategoryContext';
 
 const Register = () => {
   const navigation = useNavigation<any>();
   const { theme } = useTheme();
-  const { signUp } = useAuth(); // Use o hook de autenticação
+  const { signUp } = useAuth();
+  const { initializeDefaultCategories } = useCategories();
   
   // Estados do formulário
   const [name, setName] = useState('');
@@ -97,6 +99,15 @@ const Register = () => {
     try {
       // Chama a função de registro do contexto de autenticação
       await signUp({ name, email, password });
+      
+      // Initialize default categories for the new user
+      try {
+        console.log("Initializing default categories for new user");
+        await initializeDefaultCategories();
+      } catch (categoriesError) {
+        console.error('Error initializing default categories:', categoriesError);
+        // Continue anyway, this is not a blocking issue
+      }
       
       // Não é necessário navegar, pois o estado signed no contexto já fará isso
     } catch (error: any) {

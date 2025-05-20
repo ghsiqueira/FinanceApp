@@ -1,4 +1,6 @@
-// src/constants/index.ts (atualizado com DEFAULT_SETTINGS)
+// src/constants/index.ts (corrigido com tipagem para DEFAULT_CATEGORIES)
+
+import { Category } from '../types';
 
 // Ícones disponíveis para categorias
 export const CATEGORY_ICONS = [
@@ -119,31 +121,32 @@ export const CATEGORY_COLORS = [
 ];
 
 // Categorias padrão para serem criadas inicialmente se o usuário não tiver categorias
-export const DEFAULT_CATEGORIES = [
+// Agora com tipagem explícita para garantir que type seja 'income', 'expense' ou 'both'
+export const DEFAULT_CATEGORIES: Omit<Category, '_id' | 'createdAt' | 'updatedAt' | 'user'>[] = [
   // Categorias de receita
   {
     name: 'Salário',
     color: '#4CAF50',
     icon: 'cash',
-    type: 'income'
+    type: 'income' as const
   },
   {
     name: 'Freelance',
     color: '#8BC34A',
     icon: 'laptop',
-    type: 'income'
+    type: 'income' as const
   },
   {
     name: 'Investimentos',
     color: '#009688',
     icon: 'chart-line',
-    type: 'income'
+    type: 'income' as const
   },
   {
     name: 'Presente',
     color: '#E91E63',
     icon: 'gift',
-    type: 'income'
+    type: 'income' as const
   },
   
   // Categorias de despesa
@@ -151,49 +154,49 @@ export const DEFAULT_CATEGORIES = [
     name: 'Alimentação',
     color: '#FF5722',
     icon: 'food',
-    type: 'expense'
+    type: 'expense' as const
   },
   {
     name: 'Transporte',
     color: '#3F51B5',
     icon: 'car',
-    type: 'expense'
+    type: 'expense' as const
   },
   {
     name: 'Moradia',
     color: '#795548',
     icon: 'home',
-    type: 'expense'
+    type: 'expense' as const
   },
   {
     name: 'Saúde',
     color: '#F44336',
     icon: 'hospital-box',
-    type: 'expense'
+    type: 'expense' as const
   },
   {
     name: 'Educação',
     color: '#9C27B0',
     icon: 'school',
-    type: 'expense'
+    type: 'expense' as const
   },
   {
     name: 'Lazer',
     color: '#FF9800',
     icon: 'movie',
-    type: 'expense'
+    type: 'expense' as const
   },
   {
     name: 'Compras',
     color: '#2196F3',
     icon: 'cart',
-    type: 'expense'
+    type: 'expense' as const
   },
   {
     name: 'Assinaturas',
     color: '#607D8B',
     icon: 'newspaper',
-    type: 'expense'
+    type: 'expense' as const
   }
 ];
 
