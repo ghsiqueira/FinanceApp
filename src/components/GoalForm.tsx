@@ -1,4 +1,4 @@
-// src/components/GoalForm.tsx
+// src/components/GoalForm.tsx - Atualização para incluir prioridade
 import React, { useState, useEffect } from 'react';
 import {
   View,
@@ -11,7 +11,8 @@ import {
   Platform,
   TouchableWithoutFeedback,
   Modal,
-  FlatList
+  FlatList,
+  Switch
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Icon from 'react-native-vector-icons/MaterialCommunityIcons';
@@ -21,22 +22,25 @@ import { Goal, Category } from '../types';
 import { CATEGORY_COLORS } from '../constants';
 import AmountInput from './AmountInput';
 import CategorySelector from './CategorySelector';
+import Slider from '@react-native-community/slider'; // Certifique-se de instalar esta dependência
 
 interface GoalFormProps {
   initialValues?: Partial<Goal>;
   onSubmit: (goal: Goal) => void;
   isEditing?: boolean;
+  monthlyIncome?: number; // Nova prop para ajudar a calcular valores sugeridos
 }
 
 const GoalForm: React.FC<GoalFormProps> = ({
   initialValues,
   onSubmit,
-  isEditing = false
+  isEditing = false,
+  monthlyIncome = 0
 }) => {
   const { theme } = useTheme();
   const { categories } = useCategories();
   
-  // Form state
+  // Form state existente
   const [title, setTitle] = useState<string>(initialValues?.title || '');
   const [targetAmount, setTargetAmount] = useState<number>(initialValues?.targetAmount || 0);
   const [currentAmount, setCurrentAmount] = useState<number>(initialValues?.currentAmount || 0);
@@ -52,7 +56,16 @@ const GoalForm: React.FC<GoalFormProps> = ({
       : null
   );
   
-  // Form UI state
+  // Novos campos para o planejamento
+  const [priority, setPriority] = useState<number>(initialValues?.priority || 3); // Padrão: prioridade média
+  const [monthlyContribution, setMonthlyContribution] = useState<number>(
+    initialValues?.monthlyContribution || 0
+  );
+  const [autoRedistribute, setAutoRedistribute] = useState<boolean>(
+    initialValues?.autoRedistribute !== undefined ? initialValues.autoRedistribute : true
+  );
+  
+  // Estados UI existentes
   const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
   const [showColorPicker, setShowColorPicker] = useState<boolean>(false);
   
@@ -61,8 +74,30 @@ const GoalForm: React.FC<GoalFormProps> = ({
     title?: string;
     targetAmount?: string;
     currentAmount?: string;
+    monthlyContribution?: string;
   }>({});
   
+  // Calcular contribuição mensal sugerida quando target ou deadline mudarem
+  useEffect(() => {
+    if (targetAmount > 0 && deadline) {
+      const today = new Date();
+      const monthsUntilDeadline = 
+        (deadline.getFullYear() - today.getFullYear()) * 12 + 
+        (deadline.getMonth() - today.getMonth());
+      
+      if (monthsUntilDeadline > 0) {
+        const remaining = targetAmount - currentAmount;
+        const suggested = remaining / monthsUntilDeadline;
+        
+        // Arredondar para duas casas decimais
+        setMonthlyContribution(Math.round(suggested * 100) / 100);
+      }
+    }
+  }, [targetAmount, deadline, currentAmount]);
+  
+  // Funções de manipulação existentes
+  // ...
+
   // Handle date change
   const handleDateChange = (event: any, selectedDate?: Date) => {
     setShowDatePicker(false);
@@ -82,6 +117,7 @@ const GoalForm: React.FC<GoalFormProps> = ({
       title?: string;
       targetAmount?: string;
       currentAmount?: string;
+      monthlyContribution?: string;
     } = {};
     
     if (!title.trim()) {
@@ -100,6 +136,10 @@ const GoalForm: React.FC<GoalFormProps> = ({
       newErrors.currentAmount = 'O valor atual não pode ser maior que o valor alvo';
     }
     
+    if (monthlyContribution < 0) {
+      newErrors.monthlyContribution = 'A contribuição mensal não pode ser negativa';
+    }
+    
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -116,9 +156,25 @@ const GoalForm: React.FC<GoalFormProps> = ({
         category: category?._id || '',
         isCompleted: currentAmount >= targetAmount,
         deadline: deadline ? deadline.toISOString() : undefined,
+        // Novos campos
+        priority,
+        monthlyContribution,
+        autoRedistribute
       };
       
       onSubmit(goal);
+    }
+  };
+  
+  // Helper para renderizar o texto de prioridade
+  const getPriorityText = (value: number): string => {
+    switch (value) {
+      case 1: return 'Muito Alta';
+      case 2: return 'Alta';
+      case 3: return 'Média';
+      case 4: return 'Baixa';
+      case 5: return 'Muito Baixa';
+      default: return 'Média';
     }
   };
   
@@ -132,6 +188,9 @@ const GoalForm: React.FC<GoalFormProps> = ({
         contentContainerStyle={styles.contentContainer}
         keyboardShouldPersistTaps="handled"
       >
+        {/* Campos existentes */}
+        {/* ... */}
+
         {/* Title Input */}
         <View style={styles.inputContainer}>
           <Text style={[styles.label, { color: theme.text }]}>Título da Meta</Text>
@@ -186,23 +245,6 @@ const GoalForm: React.FC<GoalFormProps> = ({
           error={undefined}
         />
         
-        {/* Color Picker */}
-        <View style={styles.inputContainer}>
-          <Text style={[styles.label, { color: theme.text }]}>Cor</Text>
-          <TouchableOpacity
-            style={[
-              styles.colorButton,
-              { borderColor: theme.border, backgroundColor: theme.card }
-            ]}
-            onPress={() => setShowColorPicker(true)}
-          >
-            <View style={[styles.colorPreview, { backgroundColor: color }]} />
-            <Text style={[styles.colorButtonText, { color: theme.text }]}>
-              Selecionar Cor
-            </Text>
-          </TouchableOpacity>
-        </View>
-        
         {/* Date Selector */}
         <View style={styles.inputContainer}>
           <Text style={[styles.label, { color: theme.text }]}>Data Limite (opcional)</Text>
@@ -238,6 +280,84 @@ const GoalForm: React.FC<GoalFormProps> = ({
           />
         )}
         
+        {/* Novo: Priority Selector */}
+        <View style={styles.inputContainer}>
+          <Text style={[styles.label, { color: theme.text }]}>Prioridade</Text>
+          <View style={styles.priorityContainer}>
+            <Text style={[styles.priorityText, { color: theme.textSecondary }]}>
+              {getPriorityText(priority)}
+            </Text>
+            <Slider
+              style={styles.prioritySlider}
+              minimumValue={1}
+              maximumValue={5}
+              step={1}
+              value={priority}
+              onValueChange={setPriority}
+              minimumTrackTintColor={theme.primary}
+              maximumTrackTintColor={theme.border}
+              thumbTintColor={theme.primary}
+            />
+            <View style={styles.priorityLabels}>
+              <Text style={[styles.priorityLabel, { color: theme.textSecondary }]}>Alta</Text>
+              <Text style={[styles.priorityLabel, { color: theme.textSecondary }]}>Baixa</Text>
+            </View>
+          </View>
+        </View>
+        
+        {/* Novo: Monthly Contribution Input */}
+        <View style={styles.inputContainer}>
+          <Text style={[styles.label, { color: theme.text }]}>
+            Contribuição Mensal Sugerida
+          </Text>
+          <AmountInput 
+            value={monthlyContribution}
+            onChange={setMonthlyContribution}
+            error={errors.monthlyContribution}
+            isIncome={true}
+          />
+          {deadline && (
+            <Text style={[styles.contributionHint, { color: theme.textSecondary }]}>
+              Valor mensal necessário para atingir a meta até {formattedDate}
+            </Text>
+          )}
+        </View>
+        
+        {/* Novo: Auto Redistribute Toggle */}
+        <View style={styles.toggleContainer}>
+          <View style={styles.toggleTextContainer}>
+            <Text style={[styles.toggleLabel, { color: theme.text }]}>
+              Redistribuir automaticamente
+            </Text>
+            <Text style={[styles.toggleDescription, { color: theme.textSecondary }]}>
+              Quando esta meta for concluída, o valor excedente será distribuído para outras metas
+            </Text>
+          </View>
+          <Switch
+            value={autoRedistribute}
+            onValueChange={setAutoRedistribute}
+            trackColor={{ false: '#767577', true: theme.primary + '80' }}
+            thumbColor={autoRedistribute ? theme.primary : '#f4f3f4'}
+          />
+        </View>
+        
+        {/* Color Picker */}
+        <View style={styles.inputContainer}>
+          <Text style={[styles.label, { color: theme.text }]}>Cor</Text>
+          <TouchableOpacity
+            style={[
+              styles.colorButton,
+              { borderColor: theme.border, backgroundColor: theme.card }
+            ]}
+            onPress={() => setShowColorPicker(true)}
+          >
+            <View style={[styles.colorPreview, { backgroundColor: color }]} />
+            <Text style={[styles.colorButtonText, { color: theme.text }]}>
+              Selecionar Cor
+            </Text>
+          </TouchableOpacity>
+        </View>
+                
         {/* Submit Button */}
         <TouchableOpacity
           style={[styles.submitButton, { backgroundColor: theme.primary }]}
@@ -297,6 +417,8 @@ const GoalForm: React.FC<GoalFormProps> = ({
 };
 
 const styles = StyleSheet.create({
+  // Estilos existentes
+  // ...
   container: {
     flex: 1,
   },
@@ -401,6 +523,50 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     borderRadius: 8,
+  },
+  
+  // Novos estilos
+  priorityContainer: {
+    marginBottom: 8,
+  },
+  priorityText: {
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  prioritySlider: {
+    height: 40,
+  },
+  priorityLabels: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  priorityLabel: {
+    fontSize: 12,
+  },
+  contributionHint: {
+    fontSize: 12,
+    marginTop: 4,
+    fontStyle: 'italic',
+  },
+  toggleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e0e0',
+  },
+  toggleTextContainer: {
+    flex: 1,
+  },
+  toggleLabel: {
+    fontSize: 16,
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  toggleDescription: {
+    fontSize: 12,
   },
 });
 

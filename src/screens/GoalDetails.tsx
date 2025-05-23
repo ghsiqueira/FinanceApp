@@ -19,6 +19,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useGoals } from '../context/GoalContext';
 import { Goal } from '../types';
 import { formatCurrency } from '../utils/formatters';
+import { useFinancialPlan } from '../context/FinancialPlanContext';
 import AmountInput from '../components/AmountInput';
 
 interface RouteParams {
@@ -31,6 +32,7 @@ const GoalDetails = () => {
   const navigation = useNavigation<any>();
   const { theme } = useTheme();
   const { goals, addAmountToGoal, deleteGoal, loading } = useGoals();
+  const { financialPlan, handleGoalCompletion } = useFinancialPlan();
   
   const [goal, setGoal] = useState<Goal | null>(null);
   const [deleting, setDeleting] = useState(false);
@@ -87,10 +89,15 @@ const GoalDetails = () => {
     if (!goal?._id || amountToAdd <= 0) return;
     
     try {
-      await addAmountToGoal(goal._id, amountToAdd);
+      const updatedGoal = await addAmountToGoal(goal._id, amountToAdd);
       
       setShowAddFundsModal(false);
       setAmountToAdd(0);
+      
+      // Se a meta foi concluída e tem redistribuição automática ativada
+      if (updatedGoal.isCompleted && updatedGoal.autoRedistribute) {
+        await handleGoalCompletion(updatedGoal._id);
+      }
       
       // Show success message
       Alert.alert(
@@ -102,6 +109,7 @@ const GoalDetails = () => {
       Alert.alert('Erro', 'Não foi possível adicionar o valor.');
     }
   };
+
   
   // Loading state
   if (loading || !goal) {
@@ -341,6 +349,54 @@ const GoalDetails = () => {
                 </Text>
               </TouchableOpacity>
             </View>
+          </View>
+        </View>
+
+        {/* Priority */}
+        <View style={styles.detailRow}>
+          <View style={styles.detailIcon}>
+            <Icon name="priority-high" size={20} color={theme.primary} />
+          </View>
+          <View style={styles.detailContent}>
+            <Text style={[styles.detailLabel, { color: theme.textSecondary }]}>
+              Prioridade
+            </Text>
+            <Text style={[styles.detailValue, { color: theme.text }]}>
+              {goal.priority === 1 ? 'Muito alta' : 
+              goal.priority === 2 ? 'Alta' :
+              goal.priority === 3 ? 'Média' :
+              goal.priority === 4 ? 'Baixa' : 'Muito baixa'}
+            </Text>
+          </View>
+        </View>
+
+        {/* Monthly Contribution */}
+        <View style={styles.detailRow}>
+          <View style={styles.detailIcon}>
+            <Icon name="cash-multiple" size={20} color={theme.primary} />
+          </View>
+          <View style={styles.detailContent}>
+            <Text style={[styles.detailLabel, { color: theme.textSecondary }]}>
+              Contribuição mensal sugerida
+            </Text>
+            <Text style={[styles.detailValue, { color: theme.text }]}>
+              {formatCurrency(goal.monthlyContribution)}
+            </Text>
+          </View>
+        </View>
+
+        {/* Auto Redistribute */}
+        <View style={styles.detailRow}>
+          <View style={styles.detailIcon}>
+            <Icon name="refresh" size={20} color={theme.primary} />
+          </View>
+          <View style={styles.detailContent}>
+            <Text style={[styles.detailLabel, { color: theme.textSecondary }]}>
+              Redistribuição automática
+            </Text>
+            <Text style={[styles.detailValue, { color: theme.text }]}>
+              {goal.autoRedistribute ? 'Ativada' : 'Desativada'}
+            </Text>
           </View>
         </View>
       </Modal>

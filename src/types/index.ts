@@ -34,7 +34,11 @@ export interface Goal {
   isCompleted: boolean;
   createdAt?: Date | string;
   updatedAt?: Date | string;
-  user?: string; // ID do usuário proprietário da meta
+  user?: string;
+  // Novos campos
+  priority: number; // 1-5 (1: Muito alta, 5: Muito baixa)
+  monthlyContribution: number; // Valor de contribuição mensal sugerido
+  autoRedistribute: boolean; // Redistribuir automaticamente quando concluído
 }
 
 export interface MonthlySummary {
@@ -73,4 +77,10 @@ export interface RecurringTransaction {
   autoGenerate: boolean;
   requireConfirmation: boolean;
   active: boolean;
+}
+
+export interface FinancialPlan {
+  monthlyIncome: number; // Renda mensal
+  savingsPercentage: number; // Porcentagem da renda destinada a poupança/metas
+  autoDistribute: boolean; // Distribuir automaticamente entre as metas
 }
