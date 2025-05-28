@@ -15,8 +15,9 @@ import Animated, {
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../services/api';
 import AddTransactionModal from '../../components/AddTransactionModal';
+import EditTransactionModal from '../../components/EditTransactionModal';
 import FilterModal, { FilterOptions } from '../../components/FilterModal';
-import SwipeableTransactionCard from '../../components/SwipeableTransactionCard';
+import TransactionCard from '../../components/SwipeableTransactionCard';
 import LoadingAnimation from '../../components/LoadingAnimation';
 import { Transaction } from '../../types';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -32,6 +33,8 @@ const AnimatedTouchableOpacity = Animated.createAnimatedComponent(TouchableOpaci
 const TransactionsScreen = () => {
   const { theme, isDark } = useTheme();
   const [modalVisible, setModalVisible] = useState(false);
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [filterModalVisible, setFilterModalVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const queryClient = useQueryClient();
@@ -134,7 +137,11 @@ const TransactionsScreen = () => {
     mutationFn: (id: string) => api.delete(`/transactions/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      Alert.alert('Sucesso', 'Transação excluída com sucesso!');
     },
+    onError: () => {
+      Alert.alert('Erro', 'Não foi possível excluir a transação.');
+    }
   });
 
   const handleDelete = useCallback((id: string) => {
@@ -151,6 +158,11 @@ const TransactionsScreen = () => {
       ]
     );
   }, [deleteMutation]);
+
+  const handleEdit = useCallback((transaction: Transaction) => {
+    setSelectedTransaction(transaction);
+    setEditModalVisible(true);
+  }, []);
 
   const handleApplyFilters = (newFilters: FilterOptions) => {
     setFilters(newFilters);
@@ -192,12 +204,10 @@ const TransactionsScreen = () => {
       entering={SlideInRight.delay(index * 50)}
       exiting={SlideOutLeft}
     >
-      <SwipeableTransactionCard
+      <TransactionCard
         item={item}
         onDelete={handleDelete}
-        onEdit={(transaction) => {
-          Alert.alert('Em breve', 'Funcionalidade de edição será implementada');
-        }}
+        onEdit={handleEdit}
       />
     </Animated.View>
   );
@@ -334,7 +344,7 @@ const TransactionsScreen = () => {
             color={isDark ? 'primary' : 'textSecondary'} 
             style={{ textAlign: 'center', marginLeft: 8, flex: 1 }}
           >
-            💡 Dica: Deslize para a esquerda para deletar, para a direita para editar
+            💡 Dica: Use os botões de editar (✏️) e excluir (🗑️) em cada transação
           </ThemedText>
         </View>
       )}
@@ -499,6 +509,15 @@ const TransactionsScreen = () => {
       <AddTransactionModal
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
+      />
+
+      <EditTransactionModal
+        visible={editModalVisible}
+        onClose={() => {
+          setEditModalVisible(false);
+          setSelectedTransaction(null);
+        }}
+        transaction={selectedTransaction}
       />
 
       <FilterModal

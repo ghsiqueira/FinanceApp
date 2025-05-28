@@ -16,6 +16,7 @@ import { ModalProps } from '../types';
 interface GoalData {
   title: string;
   targetAmount: number;
+  currentAmount: number;
   targetDate: string;
 }
 
@@ -59,6 +60,7 @@ const AddGoalModal: React.FC<ModalProps> = ({ visible, onClose }) => {
     addMutation.mutate({
       title,
       targetAmount: parseFloat(targetAmount.replace(',', '.')),
+      currentAmount: 0, // Nova meta sempre começa com 0
       targetDate: formattedDate,
     });
   };

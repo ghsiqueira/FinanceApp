@@ -23,7 +23,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
-import { ModalProps } from '../types';
+import { Transaction } from '../types';
 import { useTheme } from '../contexts/ThemeContext';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -58,22 +58,34 @@ const expenseCategories = [
   'Outros'
 ];
 
+interface EditTransactionModalProps {
+  visible: boolean;
+  onClose: () => void;
+  transaction: Transaction | null;
+}
+
 interface TransactionData {
   type: string;
   amount: number;
   category: string;
   description: string;
+  date: string;
   isRecurring?: boolean;
   recurringFrequency?: 'daily' | 'weekly' | 'monthly' | 'yearly';
   recurringEndDate?: string;
 }
 
-const AddTransactionModal: React.FC<ModalProps> = ({ visible, onClose }) => {
+const EditTransactionModal: React.FC<EditTransactionModalProps> = ({ 
+  visible, 
+  onClose, 
+  transaction 
+}) => {
   const { theme, isDark } = useTheme();
   const [type, setType] = useState<'income' | 'expense'>('expense');
   const [amount, setAmount] = useState('');
-  const [category, setCategory] = useState(expenseCategories[0]);
+  const [category, setCategory] = useState('');
   const [description, setDescription] = useState('');
+  const [date, setDate] = useState('');
   const [isRecurring, setIsRecurring] = useState(false);
   const [recurringFrequency, setRecurringFrequency] = useState<'daily' | 'weekly' | 'monthly' | 'yearly'>('monthly');
   const [recurringEndDate, setRecurringEndDate] = useState('');
@@ -84,13 +96,30 @@ const AddTransactionModal: React.FC<ModalProps> = ({ visible, onClose }) => {
   const translateY = useSharedValue(SCREEN_HEIGHT);
   const opacity = useSharedValue(0);
 
+  // Preencher formulário quando a transação mudar
+  useEffect(() => {
+    if (transaction) {
+      setType(transaction.type);
+      setAmount(transaction.amount.toString().replace('.', ','));
+      setCategory(transaction.category);
+      setDescription(transaction.description);
+      
+      // Formatar data para DD/MM/AAAA
+      const transactionDate = new Date(transaction.date);
+      const formattedDate = `${String(transactionDate.getDate()).padStart(2, '0')}/${String(transactionDate.getMonth() + 1).padStart(2, '0')}/${transactionDate.getFullYear()}`;
+      setDate(formattedDate);
+      
+      setIsRecurring(transaction.isRecurring || false);
+      setRecurringFrequency(transaction.recurringFrequency || 'monthly');
+      setRecurringEndDate(transaction.recurringEndDate ? new Date(transaction.recurringEndDate).toLocaleDateString('pt-BR') : '');
+    }
+  }, [transaction]);
+
   useEffect(() => {
     if (visible) {
-      // Mostrar modal
       opacity.value = withTiming(1, { duration: 200 });
       translateY.value = withSpring(0, { damping: 15, stiffness: 100 });
     } else {
-      // Esconder modal
       opacity.value = withTiming(0, { duration: 200 });
       translateY.value = withTiming(SCREEN_HEIGHT, { duration: 300 });
     }
@@ -104,33 +133,39 @@ const AddTransactionModal: React.FC<ModalProps> = ({ visible, onClose }) => {
     transform: [{ translateY: translateY.value }],
   }));
 
-  const addMutation = useMutation({
-    mutationFn: (data: TransactionData) => api.post('/transactions', data),
+  const updateMutation = useMutation({
+    mutationFn: (data: { id: string; transaction: TransactionData }) => 
+      api.put(`/transactions/${data.id}`, data.transaction),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['transactions'] });
-      resetForm();
       runOnJS(onClose)();
-      runOnJS(() => Alert.alert('Sucesso', isRecurring ? 'Transação recorrente criada!' : 'Transação adicionada'))();
+      runOnJS(() => Alert.alert('Sucesso', 'Transação atualizada com sucesso!'))();
     },
     onError: (error) => {
-      runOnJS(() => Alert.alert('Erro', 'Não foi possível adicionar a transação. Tente novamente.'))();
-      console.log('Erro ao adicionar transação:', error);
+      runOnJS(() => Alert.alert('Erro', 'Não foi possível atualizar a transação. Tente novamente.'))();
+      console.log('Erro ao atualizar transação:', error);
     }
   });
 
-  const resetForm = () => {
-    setType('expense');
-    setAmount('');
-    setCategory(expenseCategories[0]);
-    setDescription('');
-    setIsRecurring(false);
-    setRecurringFrequency('monthly');
-    setRecurringEndDate('');
-  };
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/transactions/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['transactions'] });
+      runOnJS(onClose)();
+      runOnJS(() => Alert.alert('Sucesso', 'Transação excluída com sucesso!'))();
+    },
+    onError: (error) => {
+      runOnJS(() => Alert.alert('Erro', 'Não foi possível excluir a transação. Tente novamente.'))();
+      console.log('Erro ao excluir transação:', error);
+    }
+  });
 
   const handleTypeChange = (newType: 'income' | 'expense') => {
     setType(newType);
-    setCategory(newType === 'income' ? incomeCategories[0] : expenseCategories[0]);
+    const categories = newType === 'income' ? incomeCategories : expenseCategories;
+    if (!categories.includes(category)) {
+      setCategory(categories[0]);
+    }
   };
 
   const handleClose = () => {
@@ -140,8 +175,8 @@ const AddTransactionModal: React.FC<ModalProps> = ({ visible, onClose }) => {
     });
   };
 
-  const handleSubmit = () => {
-    if (!amount || !description) {
+  const handleUpdate = () => {
+    if (!amount || !description || !date) {
       Alert.alert('Erro', 'Preencha todos os campos obrigatórios');
       return;
     }
@@ -152,30 +187,60 @@ const AddTransactionModal: React.FC<ModalProps> = ({ visible, onClose }) => {
       return;
     }
 
+    // Validar formato de data DD/MM/AAAA
+    const dateRegex = /^\d{2}\/\d{2}\/\d{4}$/;
+    if (!dateRegex.test(date)) {
+      Alert.alert('Erro', 'Data deve estar no formato DD/MM/AAAA');
+      return;
+    }
+
+    // Converter data para formato ISO
+    const [day, month, year] = date.split('/');
+    const isoDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+
     const transactionData: TransactionData = {
       type,
       amount: numericAmount,
       category,
       description,
+      date: new Date(isoDate).toISOString(),
       isRecurring,
       ...(isRecurring && {
         recurringFrequency,
-        ...(recurringEndDate && { recurringEndDate })
+        ...(recurringEndDate && { 
+          recurringEndDate: (() => {
+            const [d, m, y] = recurringEndDate.split('/');
+            return new Date(`${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`).toISOString();
+          })()
+        })
       })
     };
 
-    if (isRecurring && !recurringEndDate) {
-      Alert.alert(
-        'Transação Recorrente',
-        'Você não definiu uma data limite. Esta transação será recorrente por tempo indeterminado. Deseja continuar?',
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          { text: 'Continuar', onPress: () => addMutation.mutate(transactionData) }
-        ]
-      );
-    } else {
-      addMutation.mutate(transactionData);
-    }
+    if (!transaction?._id) return;
+
+    updateMutation.mutate({
+      id: transaction._id,
+      transaction: transactionData
+    });
+  };
+
+  const handleDelete = () => {
+    Alert.alert(
+      'Confirmar Exclusão',
+      'Esta ação não pode ser desfeita. Deseja realmente excluir esta transação?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { 
+          text: 'Excluir', 
+          style: 'destructive',
+          onPress: () => {
+            if (transaction?._id) {
+              deleteMutation.mutate(transaction._id);
+            }
+          }
+        }
+      ]
+    );
   };
 
   const frequencyOptions = [
@@ -187,7 +252,7 @@ const AddTransactionModal: React.FC<ModalProps> = ({ visible, onClose }) => {
 
   const currentCategories = type === 'income' ? incomeCategories : expenseCategories;
 
-  if (!visible) return null;
+  if (!visible || !transaction) return null;
 
   return (
     <View style={StyleSheet.absoluteFill}>
@@ -218,15 +283,15 @@ const AddTransactionModal: React.FC<ModalProps> = ({ visible, onClose }) => {
               </Text>
             </TouchableOpacity>
             <Text style={[styles.headerTitle, { color: theme.colors.text }]}>
-              Nova Transação
+              Editar Transação
             </Text>
             <TouchableOpacity 
-              onPress={handleSubmit} 
+              onPress={handleUpdate} 
               style={styles.headerButton}
-              disabled={addMutation.isPending}
+              disabled={updateMutation.isPending}
             >
               <Text style={[styles.headerButtonText, { color: theme.colors.primary }]}>
-                {addMutation.isPending ? 'Salvando...' : 'Salvar'}
+                {updateMutation.isPending ? 'Salvando...' : 'Salvar'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -356,6 +421,31 @@ const AddTransactionModal: React.FC<ModalProps> = ({ visible, onClose }) => {
               />
             </View>
 
+            {/* Data */}
+            <View style={styles.section}>
+              <Text style={[styles.label, { color: theme.colors.text }]}>
+                Data *
+              </Text>
+              <View style={[styles.inputContainer, {
+                backgroundColor: theme.colors.surface,
+                borderColor: theme.colors.border
+              }]}>
+                <Ionicons 
+                  name="calendar" 
+                  size={20} 
+                  color={theme.colors.textSecondary}
+                  style={{ marginRight: 8 }}
+                />
+                <TextInput
+                  style={[styles.dateInput, { color: theme.colors.text }]}
+                  value={date}
+                  onChangeText={setDate}
+                  placeholder="DD/MM/AAAA"
+                  placeholderTextColor={theme.colors.textSecondary}
+                />
+              </View>
+            </View>
+
             {/* Transação Recorrente */}
             <View style={[styles.section, styles.recurringSection, {
               borderTopColor: theme.colors.border
@@ -427,18 +517,25 @@ const AddTransactionModal: React.FC<ModalProps> = ({ visible, onClose }) => {
                     placeholder="DD/MM/AAAA"
                     placeholderTextColor={theme.colors.textSecondary}
                   />
-
-                  <View style={[styles.warningBox, { 
-                    backgroundColor: `${theme.colors.warning}15`,
-                    borderColor: theme.colors.warning,
-                  }]}>
-                    <Ionicons name="information-circle" size={16} color={theme.colors.warning} />
-                    <Text style={[styles.warningText, { color: theme.colors.warning }]}>
-                      Se não definir uma data limite, a transação será recorrente por tempo indeterminado
-                    </Text>
-                  </View>
                 </View>
               )}
+            </View>
+
+            {/* Botão de Excluir */}
+            <View style={styles.section}>
+              <TouchableOpacity 
+                style={[styles.deleteButton, { 
+                  backgroundColor: `${theme.colors.error}15`,
+                  borderColor: theme.colors.error,
+                }]}
+                onPress={handleDelete}
+                disabled={deleteMutation.isPending}
+              >
+                <Ionicons name="trash" size={20} color={theme.colors.error} />
+                <Text style={[styles.deleteButtonText, { color: theme.colors.error }]}>
+                  {deleteMutation.isPending ? 'Excluindo...' : 'Excluir Transação'}
+                </Text>
+              </TouchableOpacity>
             </View>
           </ScrollView>
         </SafeAreaView>
@@ -533,6 +630,11 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     paddingVertical: 12,
   },
+  dateInput: {
+    flex: 1,
+    fontSize: 16,
+    paddingVertical: 12,
+  },
   input: {
     borderRadius: 12,
     paddingHorizontal: 16,
@@ -573,20 +675,20 @@ const styles = StyleSheet.create({
   frequencyButtonText: {
     fontSize: 12,
   },
-  warningBox: {
+  deleteButton: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    padding: 12,
-    borderRadius: 8,
-    marginTop: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: 12,
     borderWidth: 1,
+    gap: 8,
   },
-  warningText: {
-    fontSize: 12,
-    marginLeft: 8,
-    flex: 1,
-    lineHeight: 16,
+  deleteButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 
-export default AddTransactionModal;
+export default EditTransactionModal;

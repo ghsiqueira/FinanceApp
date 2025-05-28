@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
 import { View, StyleSheet, TouchableOpacity, FlatList, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../services/api';
 import AddGoalModal from '../../components/AddGoalModal';
+import EditGoalModal from '../../components/EditGoalModal';
+import GoalViewModal from '../../components/GoalViewModal';
 import { Goal } from '../../types';
 import { useTheme } from '../../contexts/ThemeContext';
 import { ThemedView, ThemedText, ThemedCard } from '../../components/ThemedComponents';
+import { useState } from 'react';
 
 interface RenderGoalProps {
   item: Goal;
@@ -15,6 +17,9 @@ interface RenderGoalProps {
 const GoalsScreen = () => {
   const { theme } = useTheme();
   const [modalVisible, setModalVisible] = useState(false);
+  const [viewModalVisible, setViewModalVisible] = useState(false);
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null);
   const queryClient = useQueryClient();
 
   const { data: goals = [] } = useQuery<Goal[]>({
@@ -29,19 +34,38 @@ const GoalsScreen = () => {
     mutationFn: (id: string) => api.delete(`/goals/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['goals'] });
-      Alert.alert('Sucesso', 'Meta deletada');
+      Alert.alert('Sucesso', 'Meta deletada com sucesso!');
     },
+    onError: () => {
+      Alert.alert('Erro', 'Não foi possível deletar a meta.');
+    }
   });
 
-  const handleDelete = (id: string) => {
+  const handleDelete = (id: string, title: string) => {
     Alert.alert(
-      'Confirmar',
-      'Deseja deletar esta meta?',
+      'Confirmar Exclusão',
+      `Deseja realmente excluir a meta "${title}"? Esta ação não pode ser desfeita.`,
       [
         { text: 'Cancelar', style: 'cancel' },
         { text: 'Deletar', onPress: () => deleteMutation.mutate(id), style: 'destructive' }
       ]
     );
+  };
+
+  const handleView = (goal: Goal) => {
+    setSelectedGoal(goal);
+    setViewModalVisible(true);
+  };
+
+  const handleEdit = (goal: Goal) => {
+    setSelectedGoal(goal);
+    setViewModalVisible(false);
+    setEditModalVisible(true);
+  };
+
+  const handleEditFromView = () => {
+    setViewModalVisible(false);
+    setEditModalVisible(true);
   };
 
   const renderGoal = ({ item }: RenderGoalProps) => {
@@ -51,94 +75,129 @@ const GoalsScreen = () => {
     const daysLeft = Math.ceil((targetDate.getTime() - currentDate.getTime()) / (1000 * 60 * 60 * 24));
     const isOverdue = daysLeft < 0;
     const isAlmostDue = daysLeft <= 30 && daysLeft > 0;
+    const isCompleted = progress >= 100;
 
     return (
       <ThemedCard style={styles.goalCard}>
-        <View style={styles.goalHeader}>
-          <View style={styles.goalTitleContainer}>
-            <ThemedText variant="subtitle" color="text" style={{ fontWeight: 'bold' }}>
-              {item.title}
-            </ThemedText>
-            {isOverdue && (
-              <View style={[styles.statusBadge, { backgroundColor: `${theme.colors.error}20` }]}>
-                <Ionicons name="alert-circle" size={12} color={theme.colors.error} />
-                <ThemedText variant="caption" color="error" style={{ marginLeft: 4, fontSize: 10 }}>
-                  Vencida
-                </ThemedText>
-              </View>
-            )}
-            {isAlmostDue && (
-              <View style={[styles.statusBadge, { backgroundColor: `${theme.colors.warning}20` }]}>
-                <Ionicons name="time" size={12} color={theme.colors.warning} />
-                <ThemedText variant="caption" color="warning" style={{ marginLeft: 4, fontSize: 10 }}>
-                  {daysLeft} dias
-                </ThemedText>
-              </View>
-            )}
+        <TouchableOpacity 
+          onPress={() => handleView(item)}
+          activeOpacity={0.8}
+          style={styles.goalTouchable}
+        >
+          <View style={styles.goalHeader}>
+            <View style={styles.goalTitleContainer}>
+              <ThemedText variant="subtitle" color="text" style={{ fontWeight: 'bold' }}>
+                {item.title}
+              </ThemedText>
+              {isCompleted && (
+                <View style={[styles.statusBadge, { backgroundColor: `${theme.colors.success}20` }]}>
+                  <Ionicons name="checkmark-circle" size={12} color={theme.colors.success} />
+                  <ThemedText variant="caption" color="success" style={{ marginLeft: 4, fontSize: 10 }}>
+                    CONCLUÍDA
+                  </ThemedText>
+                </View>
+              )}
+              {isOverdue && !isCompleted && (
+                <View style={[styles.statusBadge, { backgroundColor: `${theme.colors.error}20` }]}>
+                  <Ionicons name="alert-circle" size={12} color={theme.colors.error} />
+                  <ThemedText variant="caption" color="error" style={{ marginLeft: 4, fontSize: 10 }}>
+                    VENCIDA
+                  </ThemedText>
+                </View>
+              )}
+              {isAlmostDue && !isCompleted && (
+                <View style={[styles.statusBadge, { backgroundColor: `${theme.colors.warning}20` }]}>
+                  <Ionicons name="time" size={12} color={theme.colors.warning} />
+                  <ThemedText variant="caption" color="warning" style={{ marginLeft: 4, fontSize: 10 }}>
+                    {daysLeft} DIAS
+                  </ThemedText>
+                </View>
+              )}
+            </View>
+            
+            <View style={styles.goalActions}>
+              <TouchableOpacity 
+                onPress={() => handleEdit(item)} 
+                style={[styles.actionButton, { backgroundColor: `${theme.colors.primary}15` }]}
+              >
+                <Ionicons name="pencil" size={16} color={theme.colors.primary} />
+              </TouchableOpacity>
+              <TouchableOpacity 
+                onPress={() => handleDelete(item._id!, item.title)} 
+                style={[styles.actionButton, { backgroundColor: `${theme.colors.error}15` }]}
+              >
+                <Ionicons name="trash" size={16} color={theme.colors.error} />
+              </TouchableOpacity>
+            </View>
           </View>
-          <TouchableOpacity onPress={() => handleDelete(item._id!)} style={styles.deleteButton}>
-            <Ionicons name="trash-outline" size={18} color={theme.colors.error} />
-          </TouchableOpacity>
-        </View>
-        
-        <View style={styles.progressSection}>
-          <View style={styles.progressHeader}>
-            <ThemedText variant="caption" color="textSecondary">
-              Progresso
-            </ThemedText>
-            <ThemedText variant="caption" color={progress >= 100 ? 'success' : 'primary'} style={{ fontWeight: '600' }}>
-              {progress.toFixed(1)}%
-            </ThemedText>
+          
+          <View style={styles.progressSection}>
+            <View style={styles.progressHeader}>
+              <ThemedText variant="caption" color="textSecondary">
+                Progresso
+              </ThemedText>
+              <ThemedText variant="caption" color={isCompleted ? 'success' : 'primary'} style={{ fontWeight: '600' }}>
+                {progress.toFixed(1)}%
+              </ThemedText>
+            </View>
+            <View style={[styles.progressBar, { backgroundColor: theme.colors.border }]}>
+              <View 
+                style={[
+                  styles.progressFill, 
+                  { 
+                    width: `${Math.min(progress, 100)}%`,
+                    backgroundColor: isCompleted ? theme.colors.success : 
+                                   progress >= 75 ? theme.colors.primary :
+                                   progress >= 50 ? theme.colors.warning : theme.colors.error
+                  }
+                ]} 
+              />
+            </View>
           </View>
-          <View style={[styles.progressBar, { backgroundColor: theme.colors.border }]}>
-            <View 
-              style={[
-                styles.progressFill, 
-                { 
-                  width: `${Math.min(progress, 100)}%`,
-                  backgroundColor: progress >= 100 ? theme.colors.success : 
-                                 progress >= 75 ? theme.colors.primary :
-                                 progress >= 50 ? theme.colors.warning : theme.colors.error
-                }
-              ]} 
-            />
-          </View>
-        </View>
 
-        <View style={styles.amountSection}>
-          <View style={styles.amountRow}>
-            <ThemedText variant="caption" color="textSecondary">Atual</ThemedText>
-            <ThemedText variant="body" color="text" style={{ fontWeight: '600' }}>
-              R$ {item.currentAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-            </ThemedText>
+          <View style={styles.amountSection}>
+            <View style={styles.amountRow}>
+              <ThemedText variant="caption" color="textSecondary">Atual</ThemedText>
+              <ThemedText variant="body" color="text" style={{ fontWeight: '600' }}>
+                R$ {item.currentAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </ThemedText>
+            </View>
+            <View style={styles.amountRow}>
+              <ThemedText variant="caption" color="textSecondary">Meta</ThemedText>
+              <ThemedText variant="body" color="text" style={{ fontWeight: '600' }}>
+                R$ {item.targetAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </ThemedText>
+            </View>
+            <View style={styles.amountRow}>
+              <ThemedText variant="caption" color="textSecondary">Restante</ThemedText>
+              <ThemedText variant="body" color={item.targetAmount - item.currentAmount > 0 ? 'error' : 'success'} style={{ fontWeight: '600' }}>
+                R$ {Math.max(0, item.targetAmount - item.currentAmount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+              </ThemedText>
+            </View>
           </View>
-          <View style={styles.amountRow}>
-            <ThemedText variant="caption" color="textSecondary">Meta</ThemedText>
-            <ThemedText variant="body" color="text" style={{ fontWeight: '600' }}>
-              R$ {item.targetAmount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-            </ThemedText>
-          </View>
-          <View style={styles.amountRow}>
-            <ThemedText variant="caption" color="textSecondary">Restante</ThemedText>
-            <ThemedText variant="body" color={item.targetAmount - item.currentAmount > 0 ? 'error' : 'success'} style={{ fontWeight: '600' }}>
-              R$ {Math.max(0, item.targetAmount - item.currentAmount).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
-            </ThemedText>
-          </View>
-        </View>
 
-        <View style={[styles.monthlyTargetContainer, { backgroundColor: `${theme.colors.primary}10` }]}>
-          <View style={styles.monthlyTargetContent}>
-            <Ionicons name="calendar" size={16} color={theme.colors.primary} />
-            <ThemedText variant="caption" color="primary" style={{ marginLeft: 8, flex: 1 }}>
-              💡 Guarde R$ {item.monthlyTarget.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} por mês para atingir sua meta
+          <View style={[styles.monthlyTargetContainer, { backgroundColor: `${theme.colors.primary}10` }]}>
+            <View style={styles.monthlyTargetContent}>
+              <Ionicons name="calendar" size={16} color={theme.colors.primary} />
+              <ThemedText variant="caption" color="primary" style={{ marginLeft: 8, flex: 1 }}>
+                💡 Guarde R$ {item.monthlyTarget.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} por mês para atingir sua meta
+              </ThemedText>
+            </View>
+            {!isOverdue && (
+              <ThemedText variant="caption" color="textSecondary" style={{ marginTop: 4, textAlign: 'center' }}>
+                {daysLeft > 0 ? `${daysLeft} dias restantes` : isCompleted ? 'Meta atingida! 🎉' : 'Prazo vencido'}
+              </ThemedText>
+            )}
+          </View>
+
+          {/* Indicador de que é clicável */}
+          <View style={styles.clickIndicator}>
+            <Ionicons name="eye" size={16} color={theme.colors.textSecondary} />
+            <ThemedText variant="caption" color="textSecondary" style={{ marginLeft: 4 }}>
+              Toque para ver detalhes
             </ThemedText>
           </View>
-          {!isOverdue && (
-            <ThemedText variant="caption" color="textSecondary" style={{ marginTop: 4, textAlign: 'center' }}>
-              {daysLeft > 0 ? `${daysLeft} dias restantes` : 'Meta atingida! 🎉'}
-            </ThemedText>
-          )}
-        </View>
+        </TouchableOpacity>
       </ThemedCard>
     );
   };
@@ -166,28 +225,46 @@ const GoalsScreen = () => {
     </View>
   );
 
-  return (
-    <ThemedView level="background" style={styles.container}>
-      <ThemedView level="surface" style={styles.header}>
-        <View style={styles.headerContent}>
-          <ThemedText variant="title" color="text" style={{ fontWeight: 'bold' }}>
-            🎯 Metas
-          </ThemedText>
-          {goals.length > 0 && (
+  const renderHeader = () => (
+    <ThemedView level="surface" style={styles.header}>
+      <View style={styles.headerContent}>
+        <ThemedText variant="title" color="text" style={{ fontWeight: 'bold' }}>
+          🎯 Metas
+        </ThemedText>
+        {goals.length > 0 && (
+          <View style={styles.headerStats}>
             <ThemedText variant="caption" color="textSecondary">
               {goals.length} {goals.length === 1 ? 'meta ativa' : 'metas ativas'}
             </ThemedText>
-          )}
-        </View>
-        {goals.length > 0 && (
-          <TouchableOpacity 
-            style={[styles.addButton, { backgroundColor: theme.colors.primary }]}
-            onPress={() => setModalVisible(true)}
-          >
-            <Ionicons name="add" size={24} color="#FFFFFF" />
-          </TouchableOpacity>
+            <View style={styles.headerStatsDetail}>
+              <ThemedText variant="caption" color="success">
+                {goals.filter(g => (g.currentAmount / g.targetAmount) >= 1).length} concluídas
+              </ThemedText>
+              <View style={[styles.dot, { backgroundColor: theme.colors.textSecondary }]} />
+              <ThemedText variant="caption" color="warning">
+                {goals.filter(g => {
+                  const daysLeft = Math.ceil((new Date(g.targetDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
+                  return daysLeft <= 30 && daysLeft > 0 && (g.currentAmount / g.targetAmount) < 1;
+                }).length} próximas do vencimento
+              </ThemedText>
+            </View>
+          </View>
         )}
-      </ThemedView>
+      </View>
+      {goals.length > 0 && (
+        <TouchableOpacity 
+          style={[styles.addButton, { backgroundColor: theme.colors.primary }]}
+          onPress={() => setModalVisible(true)}
+        >
+          <Ionicons name="add" size={24} color="#FFFFFF" />
+        </TouchableOpacity>
+      )}
+    </ThemedView>
+  );
+
+  return (
+    <ThemedView level="background" style={styles.container}>
+      {renderHeader()}
 
       <FlatList
         data={goals}
@@ -204,6 +281,25 @@ const GoalsScreen = () => {
       <AddGoalModal
         visible={modalVisible}
         onClose={() => setModalVisible(false)}
+      />
+
+      <GoalViewModal
+        visible={viewModalVisible}
+        onClose={() => {
+          setViewModalVisible(false);
+          setSelectedGoal(null);
+        }}
+        onEdit={handleEditFromView}
+        goal={selectedGoal}
+      />
+
+      <EditGoalModal
+        visible={editModalVisible}
+        onClose={() => {
+          setEditModalVisible(false);
+          setSelectedGoal(null);
+        }}
+        goal={selectedGoal}
       />
     </ThemedView>
   );
@@ -223,6 +319,20 @@ const styles = StyleSheet.create({
   },
   headerContent: {
     flex: 1,
+  },
+  headerStats: {
+    marginTop: 4,
+  },
+  headerStatsDetail: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  dot: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    marginHorizontal: 6,
   },
   addButton: {
     width: 44,
@@ -244,8 +354,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   goalCard: {
-    padding: 20,
+    padding: 0,
     marginBottom: 16,
+    overflow: 'hidden',
+  },
+  goalTouchable: {
+    padding: 20,
   },
   goalHeader: {
     flexDirection: 'row',
@@ -267,8 +381,16 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginLeft: 8,
   },
-  deleteButton: {
-    padding: 4,
+  goalActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  actionButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   progressSection: {
     marginBottom: 16,
@@ -300,10 +422,20 @@ const styles = StyleSheet.create({
   monthlyTargetContainer: {
     borderRadius: 12,
     padding: 16,
+    marginBottom: 12,
   },
   monthlyTargetContent: {
     flexDirection: 'row',
     alignItems: 'center',
+  },
+  clickIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,0,0,0.05)',
+    marginTop: 4,
   },
   emptyState: {
     alignItems: 'center',
