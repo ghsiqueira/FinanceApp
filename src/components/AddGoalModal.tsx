@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,6 @@ import {
   SafeAreaView,
   Dimensions,
   StatusBar,
-  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, {
@@ -24,6 +23,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import { ModalProps } from '../types';
 import { useTheme } from '../contexts/ThemeContext';
+import DatePickerModal from './DatePickerModal';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -39,19 +39,12 @@ const AddGoalModal: React.FC<ModalProps> = ({ visible, onClose }) => {
   const [title, setTitle] = useState('');
   const [targetAmount, setTargetAmount] = useState('');
   const [targetDate, setTargetDate] = useState('');
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(new Date());
+
   const queryClient = useQueryClient();
   
-  // Ref para medir a posição do campo de data
-  const dateFieldRef = useRef<View>(null);
-  const [dateFieldLayout, setDateFieldLayout] = useState({ x: 0, y: 0, width: 0, height: 0 });
-
   // Animações
   const translateY = useSharedValue(SCREEN_HEIGHT);
   const opacity = useSharedValue(0);
-  const dropdownOpacity = useSharedValue(0);
-  const dropdownScale = useSharedValue(0.95);
 
   useEffect(() => {
     if (visible) {
@@ -63,27 +56,12 @@ const AddGoalModal: React.FC<ModalProps> = ({ visible, onClose }) => {
     }
   }, [visible]);
 
-  useEffect(() => {
-    if (showDatePicker) {
-      dropdownOpacity.value = withTiming(1, { duration: 200 });
-      dropdownScale.value = withSpring(1, { damping: 12, stiffness: 120 });
-    } else {
-      dropdownOpacity.value = withTiming(0, { duration: 150 });
-      dropdownScale.value = withTiming(0.95, { duration: 150 });
-    }
-  }, [showDatePicker]);
-
   const backgroundStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
   }));
 
   const modalStyle = useAnimatedStyle(() => ({
     transform: [{ translateY: translateY.value }],
-  }));
-
-  const dropdownStyle = useAnimatedStyle(() => ({
-    opacity: dropdownOpacity.value,
-    transform: [{ scale: dropdownScale.value }],
   }));
 
   const addMutation = useMutation({
@@ -104,8 +82,6 @@ const AddGoalModal: React.FC<ModalProps> = ({ visible, onClose }) => {
     setTitle('');
     setTargetAmount('');
     setTargetDate('');
-    setSelectedDate(new Date());
-    setShowDatePicker(false);
   };
 
   const handleClose = () => {
@@ -113,40 +89,6 @@ const AddGoalModal: React.FC<ModalProps> = ({ visible, onClose }) => {
     translateY.value = withTiming(SCREEN_HEIGHT, { duration: 300 }, () => {
       runOnJS(onClose)();
     });
-  };
-
-  const handleDateSelect = (date: Date) => {
-    setSelectedDate(date);
-    const formattedDate = `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}/${date.getFullYear()}`;
-    setTargetDate(formattedDate);
-    setShowDatePicker(false);
-  };
-
-  const toggleDatePicker = () => {
-    if (showDatePicker) {
-      // Se está aberto, fechar
-      setShowDatePicker(false);
-    } else {
-      // Se está fechado, abrir
-      // Medir a posição do campo de data
-      if (dateFieldRef.current) {
-        dateFieldRef.current.measure((x, y, width, height, pageX, pageY) => {
-          setDateFieldLayout({ x: pageX, y: pageY, width, height });
-        });
-      }
-
-      // Se já tem uma data válida, usar ela como inicial
-      if (targetDate) {
-        const [day, month, year] = targetDate.split('/');
-        if (day && month && year) {
-          const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-          if (!isNaN(date.getTime())) {
-            setSelectedDate(date);
-          }
-        }
-      }
-      setShowDatePicker(true);
-    }
   };
 
   const calculateMonthlyTarget = (targetAmount: number, targetDate: string): number => {
@@ -220,13 +162,7 @@ const AddGoalModal: React.FC<ModalProps> = ({ visible, onClose }) => {
       >
         <TouchableOpacity 
           style={StyleSheet.absoluteFill} 
-          onPress={() => {
-            if (showDatePicker) {
-              setShowDatePicker(false);
-            } else {
-              handleClose();
-            }
-          }}
+          onPress={handleClose}
           activeOpacity={1}
         />
       </Animated.View>
@@ -316,154 +252,11 @@ const AddGoalModal: React.FC<ModalProps> = ({ visible, onClose }) => {
               <Text style={[styles.label, { color: theme.colors.text }]}>
                 Data Limite *
               </Text>
-              <View ref={dateFieldRef}>
-                <TouchableOpacity
-                  style={[styles.inputContainer, {
-                    backgroundColor: theme.colors.surface,
-                    borderColor: theme.colors.border,
-                    borderBottomLeftRadius: showDatePicker ? 0 : 12,
-                    borderBottomRightRadius: showDatePicker ? 0 : 12,
-                  }]}
-                  onPress={toggleDatePicker}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons 
-                    name="calendar" 
-                    size={20} 
-                    color={theme.colors.textSecondary}
-                    style={{ marginRight: 12 }}
-                  />
-                  <Text style={[
-                    styles.dateText, 
-                    { 
-                      color: targetDate ? theme.colors.text : theme.colors.textSecondary,
-                      flex: 1
-                    }
-                  ]}>
-                    {targetDate || 'Selecione uma data'}
-                  </Text>
-                  <Ionicons 
-                    name={showDatePicker ? "chevron-up" : "chevron-down"} 
-                    size={16} 
-                    color={theme.colors.textSecondary}
-                  />
-                </TouchableOpacity>
-              </View>
-
-              {/* Date Picker Dropdown */}
-              {showDatePicker && (
-                <Animated.View style={[
-                  styles.datePickerDropdown, 
-                  {
-                    backgroundColor: theme.colors.surface,
-                    borderColor: theme.colors.border,
-                    shadowColor: theme.colors.shadow || '#000',
-                  },
-                  dropdownStyle
-                ]}>
-                  {/* Navegação do Mês */}
-                  <View style={styles.monthNavigation}>
-                    <TouchableOpacity 
-                      onPress={() => {
-                        const newDate = new Date(selectedDate);
-                        newDate.setMonth(newDate.getMonth() - 1);
-                        setSelectedDate(newDate);
-                      }}
-                      style={[styles.navButton, { backgroundColor: `${theme.colors.primary}15` }]}
-                    >
-                      <Ionicons name="chevron-back" size={20} color={theme.colors.primary} />
-                    </TouchableOpacity>
-                    
-                    <Text style={[styles.monthYearText, { color: theme.colors.text }]}>
-                      {selectedDate.toLocaleDateString('pt-BR', { 
-                        month: 'long', 
-                        year: 'numeric' 
-                      }).replace(/^\w/, c => c.toUpperCase())}
-                    </Text>
-                    
-                    <TouchableOpacity 
-                      onPress={() => {
-                        const newDate = new Date(selectedDate);
-                        newDate.setMonth(newDate.getMonth() + 1);
-                        setSelectedDate(newDate);
-                      }}
-                      style={[styles.navButton, { backgroundColor: `${theme.colors.primary}15` }]}
-                    >
-                      <Ionicons name="chevron-forward" size={20} color={theme.colors.primary} />
-                    </TouchableOpacity>
-                  </View>
-
-                  {/* Cabeçalho dos Dias */}
-                  <View style={styles.weekHeader}>
-                    {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((day, index) => (
-                      <Text key={index} style={[styles.weekDay, { color: theme.colors.textSecondary }]}>
-                        {day}
-                      </Text>
-                    ))}
-                  </View>
-
-                  {/* Grid dos Dias */}
-                  <View style={styles.daysGrid}>
-                    {(() => {
-                      const year = selectedDate.getFullYear();
-                      const month = selectedDate.getMonth();
-                      const firstDay = new Date(year, month, 1);
-                      const lastDay = new Date(year, month + 1, 0);
-                      const daysInMonth = lastDay.getDate();
-                      const startingDay = firstDay.getDay();
-                      
-                      const days = [];
-                      const today = new Date();
-                      today.setHours(0, 0, 0, 0);
-
-                      // Dias vazios antes do primeiro dia do mês
-                      for (let i = 0; i < startingDay; i++) {
-                        days.push(<View key={`empty-${i}`} style={styles.daySlot} />);
-                      }
-
-                      // Dias do mês
-                      for (let day = 1; day <= daysInMonth; day++) {
-                        const dayDate = new Date(year, month, day);
-                        const isToday = dayDate.getTime() === today.getTime();
-                        const isSelected = targetDate === `${String(day).padStart(2, '0')}/${String(month + 1).padStart(2, '0')}/${year}`;
-                        const isPast = dayDate < today;
-
-                        days.push(
-                          <TouchableOpacity
-                            key={day}
-                            style={[
-                              styles.daySlot,
-                              isSelected && { backgroundColor: theme.colors.primary },
-                              isToday && !isSelected && { 
-                                borderWidth: 2, 
-                                borderColor: theme.colors.primary 
-                              },
-                              isPast && { opacity: 0.3 }
-                            ]}
-                            onPress={() => !isPast && handleDateSelect(dayDate)}
-                            disabled={isPast}
-                            activeOpacity={0.7}
-                          >
-                            <Text style={[
-                              styles.dayNumber,
-                              { 
-                                color: isSelected ? '#FFFFFF' : 
-                                       isToday ? theme.colors.primary : 
-                                       theme.colors.text 
-                              },
-                              (isToday || isSelected) && { fontWeight: 'bold' }
-                            ]}>
-                              {day}
-                            </Text>
-                          </TouchableOpacity>
-                        );
-                      }
-
-                      return days;
-                    })()}
-                  </View>
-                </Animated.View>
-              )}
+              <DatePickerModal
+                value={targetDate}
+                onDateSelect={setTargetDate}
+                placeholder="Selecione uma data"
+              />
             </View>
 
             {/* Preview da Meta Mensal */}
@@ -580,7 +373,6 @@ const styles = StyleSheet.create({
   section: {
     paddingHorizontal: 20,
     paddingVertical: 16,
-    position: 'relative',
   },
   label: {
     fontSize: 16,
@@ -610,72 +402,6 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     paddingVertical: 12,
-  },
-  dateText: {
-    fontSize: 16,
-    paddingVertical: 12,
-  },
-  datePickerDropdown: {
-    borderWidth: 1,
-    borderTopWidth: 0,
-    borderBottomLeftRadius: 12,
-    borderBottomRightRadius: 12,
-    paddingHorizontal: 16,
-    paddingTop: 16,
-    paddingBottom: 0,
-    marginTop: -1,
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
-  },
-  monthNavigation: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-    paddingHorizontal: 8,
-  },
-  navButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  monthYearText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  weekHeader: {
-    flexDirection: 'row',
-    marginBottom: 8,
-  },
-  weekDay: {
-    flex: 1,
-    textAlign: 'center',
-    fontSize: 12,
-    fontWeight: '600',
-    paddingVertical: 8,
-  },
-  daysGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  daySlot: {
-    width: '14.285%', // 100% / 7 days
-    aspectRatio: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderRadius: 6,
-    marginBottom: 2,
-  },
-  dayNumber: {
-    fontSize: 14,
-    fontWeight: '500',
   },
   previewSection: {
     margin: 20,

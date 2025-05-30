@@ -25,6 +25,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import { ModalProps } from '../types';
 import { useTheme } from '../contexts/ThemeContext';
+import DatePickerModal from './DatePickerModal';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -160,7 +161,12 @@ const AddTransactionModal: React.FC<ModalProps> = ({ visible, onClose }) => {
       isRecurring,
       ...(isRecurring && {
         recurringFrequency,
-        ...(recurringEndDate && { recurringEndDate })
+        ...(recurringEndDate && { 
+          recurringEndDate: (() => {
+            const [day, month, year] = recurringEndDate.split('/');
+            return new Date(`${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`).toISOString();
+          })()
+        })
       })
     };
 
@@ -416,16 +422,10 @@ const AddTransactionModal: React.FC<ModalProps> = ({ visible, onClose }) => {
                   <Text style={[styles.label, { color: theme.colors.text }]}>
                     Data Limite (Opcional)
                   </Text>
-                  <TextInput
-                    style={[styles.input, { 
-                      backgroundColor: theme.colors.surface, 
-                      color: theme.colors.text,
-                      borderColor: theme.colors.border 
-                    }]}
+                  <DatePickerModal
                     value={recurringEndDate}
-                    onChangeText={setRecurringEndDate}
-                    placeholder="DD/MM/AAAA"
-                    placeholderTextColor={theme.colors.textSecondary}
+                    onDateSelect={setRecurringEndDate}
+                    placeholder="Selecione uma data limite"
                   />
 
                   <View style={[styles.warningBox, { 

@@ -25,6 +25,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import { Transaction } from '../types';
 import { useTheme } from '../contexts/ThemeContext';
+import DatePickerModal from './DatePickerModal';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -111,7 +112,14 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
       
       setIsRecurring(transaction.isRecurring || false);
       setRecurringFrequency(transaction.recurringFrequency || 'monthly');
-      setRecurringEndDate(transaction.recurringEndDate ? new Date(transaction.recurringEndDate).toLocaleDateString('pt-BR') : '');
+      
+      if (transaction.recurringEndDate) {
+        const endDate = new Date(transaction.recurringEndDate);
+        const formattedEndDate = `${String(endDate.getDate()).padStart(2, '0')}/${String(endDate.getMonth() + 1).padStart(2, '0')}/${endDate.getFullYear()}`;
+        setRecurringEndDate(formattedEndDate);
+      } else {
+        setRecurringEndDate('');
+      }
     }
   }, [transaction]);
 
@@ -258,7 +266,6 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
     <View style={StyleSheet.absoluteFill}>
       <StatusBar backgroundColor="rgba(0,0,0,0.5)" barStyle={isDark ? 'light-content' : 'dark-content'} />
       
-      {/* Background Overlay */}
       <Animated.View 
         style={[styles.overlay, backgroundStyle]}
       >
@@ -269,7 +276,6 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
         />
       </Animated.View>
 
-      {/* Modal Content */}
       <Animated.View style={[styles.modalContainer, modalStyle]}>
         <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
           {/* Header */}
@@ -426,24 +432,11 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
               <Text style={[styles.label, { color: theme.colors.text }]}>
                 Data *
               </Text>
-              <View style={[styles.inputContainer, {
-                backgroundColor: theme.colors.surface,
-                borderColor: theme.colors.border
-              }]}>
-                <Ionicons 
-                  name="calendar" 
-                  size={20} 
-                  color={theme.colors.textSecondary}
-                  style={{ marginRight: 8 }}
-                />
-                <TextInput
-                  style={[styles.dateInput, { color: theme.colors.text }]}
-                  value={date}
-                  onChangeText={setDate}
-                  placeholder="DD/MM/AAAA"
-                  placeholderTextColor={theme.colors.textSecondary}
-                />
-              </View>
+              <DatePickerModal
+                value={date}
+                onDateSelect={setDate}
+                placeholder="Selecione uma data"
+              />
             </View>
 
             {/* Transação Recorrente */}
@@ -506,16 +499,10 @@ const EditTransactionModal: React.FC<EditTransactionModalProps> = ({
                   <Text style={[styles.label, { color: theme.colors.text }]}>
                     Data Limite (Opcional)
                   </Text>
-                  <TextInput
-                    style={[styles.input, { 
-                      backgroundColor: theme.colors.surface, 
-                      color: theme.colors.text,
-                      borderColor: theme.colors.border 
-                    }]}
+                  <DatePickerModal
                     value={recurringEndDate}
-                    onChangeText={setRecurringEndDate}
-                    placeholder="DD/MM/AAAA"
-                    placeholderTextColor={theme.colors.textSecondary}
+                    onDateSelect={setRecurringEndDate}
+                    placeholder="Selecione uma data limite"
                   />
                 </View>
               )}
@@ -628,11 +615,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 24,
     fontWeight: 'bold',
-    paddingVertical: 12,
-  },
-  dateInput: {
-    flex: 1,
-    fontSize: 16,
     paddingVertical: 12,
   },
   input: {

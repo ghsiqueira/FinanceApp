@@ -23,6 +23,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../services/api';
 import { Goal } from '../types';
 import { useTheme } from '../contexts/ThemeContext';
+import DatePickerModal from './DatePickerModal';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -132,23 +133,19 @@ const EditGoalModal: React.FC<EditGoalModalProps> = ({
     const targetDateObj = new Date(targetDate);
     const now = new Date();
 
-    if (isNaN(targetDateObj.getTime())) { // Data inválida
+    if (isNaN(targetDateObj.getTime())) {
       return 0;
     }
     
-    // CÁLCULO MAIS PRECISO DE MESES
     let monthsDiff = (targetDateObj.getFullYear() - now.getFullYear()) * 12 + 
                      (targetDateObj.getMonth() - now.getMonth());
     
-    // Se o dia da meta ainda não passou no mês atual, soma 1 mês
     if (targetDateObj.getDate() > now.getDate()) {
       monthsDiff += 1;
     }
     
-    // Garantir pelo menos 1 mês
     monthsDiff = Math.max(monthsDiff, 1);
     
-    // Arredondar para 2 casas decimais
     const monthlyTarget = remaining / monthsDiff;
     return Math.round(monthlyTarget * 100) / 100;
   };
@@ -172,14 +169,12 @@ const EditGoalModal: React.FC<EditGoalModalProps> = ({
       return;
     }
 
-    // Validar formato de data DD/MM/AAAA
     const dateRegex = /^\d{2}\/\d{2}\/\d{4}$/;
     if (!dateRegex.test(targetDate)) {
       Alert.alert('Erro', 'Data deve estar no formato DD/MM/AAAA');
       return;
     }
 
-    // Converter data para formato ISO
     const [day, month, year] = targetDate.split('/');
     const isoDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
 
@@ -247,7 +242,6 @@ const EditGoalModal: React.FC<EditGoalModalProps> = ({
 
     const newCurrentAmount = currentNumericAmount + numericAddValue;
 
-    // Converter targetDate para ISO para cálculo correto
     const [day, month, year] = targetDate.split('/');
     const isoDate = `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
     
@@ -311,7 +305,6 @@ const EditGoalModal: React.FC<EditGoalModalProps> = ({
     <View style={StyleSheet.absoluteFill}>
       <StatusBar backgroundColor="rgba(0,0,0,0.5)" barStyle={isDark ? 'light-content' : 'dark-content'} />
       
-      {/* Background Overlay */}
       <Animated.View 
         style={[styles.overlay, backgroundStyle]}
       >
@@ -322,10 +315,8 @@ const EditGoalModal: React.FC<EditGoalModalProps> = ({
         />
       </Animated.View>
 
-      {/* Modal Content */}
       <Animated.View style={[styles.modalContainer, modalStyle]}>
         <SafeAreaView style={[styles.container, { backgroundColor: theme.colors.background }]}>
-          {/* Header */}
           <View style={[styles.header, { 
             backgroundColor: theme.colors.surface,
             borderBottomColor: theme.colors.border 
@@ -353,6 +344,7 @@ const EditGoalModal: React.FC<EditGoalModalProps> = ({
             style={styles.form} 
             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ paddingBottom: 40 }}
+            nestedScrollEnabled={true}
           >
             {/* Progress Indicator */}
             <View style={[styles.progressSection, {
@@ -511,24 +503,11 @@ const EditGoalModal: React.FC<EditGoalModalProps> = ({
               <Text style={[styles.label, { color: theme.colors.text }]}>
                 Data Limite *
               </Text>
-              <View style={[styles.inputContainer, {
-                backgroundColor: theme.colors.surface,
-                borderColor: theme.colors.border
-              }]}>
-                <Ionicons 
-                  name="calendar" 
-                  size={20} 
-                  color={theme.colors.textSecondary}
-                  style={{ marginRight: 8 }}
-                />
-                <TextInput
-                  style={[styles.dateInput, { color: theme.colors.text }]}
-                  value={targetDate}
-                  onChangeText={setTargetDate}
-                  placeholder="DD/MM/AAAA"
-                  placeholderTextColor={theme.colors.textSecondary}
-                />
-              </View>
+              <DatePickerModal
+                value={targetDate}
+                onDateSelect={setTargetDate}
+                placeholder="Selecione uma data"
+              />
             </View>
 
             {/* Info Box */}
@@ -706,11 +685,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 18,
     fontWeight: 'bold',
-    paddingVertical: 12,
-  },
-  dateInput: {
-    flex: 1,
-    fontSize: 16,
     paddingVertical: 12,
   },
   input: {
