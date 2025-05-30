@@ -16,7 +16,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from '../../services/api';
 import AddTransactionModal from '../../components/AddTransactionModal';
 import EditTransactionModal from '../../components/EditTransactionModal';
-import FilterModal, { FilterOptions } from '../../components/FilterModal';
+import FilterView, { FilterOptions } from '../../components/FilterView';
 import TransactionCard from '../../components/SwipeableTransactionCard';
 import LoadingAnimation from '../../components/LoadingAnimation';
 import { Transaction } from '../../types';
@@ -35,7 +35,7 @@ const TransactionsScreen = () => {
   const [modalVisible, setModalVisible] = useState(false);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
-  const [filterModalVisible, setFilterModalVisible] = useState(false);
+  const [filterVisible, setFilterVisible] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const queryClient = useQueryClient();
 
@@ -254,26 +254,44 @@ const TransactionsScreen = () => {
         <TouchableOpacity 
           style={{
             ...styles.filterButton,
-            backgroundColor: isDark ? `${theme.colors.primary}25` : `${theme.colors.primary}15`,
+            backgroundColor: filterVisible 
+              ? theme.colors.primary 
+              : isDark ? `${theme.colors.primary}25` : `${theme.colors.primary}15`,
             borderColor: isDark ? theme.colors.primary : 'transparent',
             borderWidth: isDark ? 1 : 0,
           }}
-          onPress={() => setFilterModalVisible(true)}
+          onPress={() => setFilterVisible(!filterVisible)}
         >
           <Ionicons 
             name="options" 
             size={20} 
-            color={isDark ? theme.colors.primary : theme.colors.primary} 
+            color={filterVisible ? '#FFFFFF' : theme.colors.primary} 
           />
-          <ThemedText variant="caption" color="primary" style={{ fontWeight: '600' }}>
+          <ThemedText 
+            variant="caption" 
+            style={{ 
+              color: filterVisible ? '#FFFFFF' : theme.colors.primary,
+              fontWeight: '600' 
+            }}
+          >
             Filtros
           </ThemedText>
           {getActiveFiltersCount() > 0 && (
             <Animated.View 
-              style={[styles.filterBadge, { backgroundColor: theme.colors.primary }]}
+              style={[
+                styles.filterBadge, 
+                { backgroundColor: filterVisible ? '#FFFFFF' : theme.colors.primary }
+              ]}
               entering={FadeIn}
             >
-              <ThemedText variant="caption" style={{ color: '#FFFFFF', fontSize: 10, fontWeight: 'bold' }}>
+              <ThemedText 
+                variant="caption" 
+                style={{ 
+                  color: filterVisible ? theme.colors.primary : '#FFFFFF', 
+                  fontSize: 10, 
+                  fontWeight: 'bold' 
+                }}
+              >
                 {getActiveFiltersCount()}
               </ThemedText>
             </Animated.View>
@@ -352,7 +370,7 @@ const TransactionsScreen = () => {
   );
 
   const renderActiveFilters = () => {
-    if (getActiveFiltersCount() === 0) return null;
+    if (getActiveFiltersCount() === 0 || filterVisible) return null;
 
     const activeFilters = [];
     
@@ -482,6 +500,14 @@ const TransactionsScreen = () => {
       </Animated.View>
 
       {renderHeader()}
+      
+      <FilterView
+        visible={filterVisible}
+        filters={filters}
+        onApplyFilters={handleApplyFilters}
+        categories={[]}
+      />
+      
       {renderActiveFilters()}
 
       <FlatList
@@ -518,14 +544,6 @@ const TransactionsScreen = () => {
           setSelectedTransaction(null);
         }}
         transaction={selectedTransaction}
-      />
-
-      <FilterModal
-        visible={filterModalVisible}
-        onClose={() => setFilterModalVisible(false)}
-        filters={filters}
-        onApplyFilters={handleApplyFilters}
-        categories={[]}
       />
     </ThemedView>
   );
